@@ -4,6 +4,8 @@ authors = ["Ralf Jung"]
 version = "0.1.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
+repository = "https://github.com/RalfJung/cargo-careful"
+description = "Execute Rust code carefully, with extra checking along the way"
 
 [dependencies]
 directories = "3"
