@@ -1,12 +1,12 @@
 use std::env;
 use std::ffi::{OsStr, OsString};
-use std::fs::{self, File};
+use std::fs;
 use std::io::{self, Write};
 use std::ops::Not;
 use std::path::{Path, PathBuf};
 use std::process::{self, Command};
 
-use tempdir::TempDir;
+mod sysroot;
 
 const CAREFUL_FLAGS: &[&str] = &[
     "-Zstrict-init-checks",
@@ -197,94 +197,22 @@ fn build_sysroot(auto: bool, target: &str) -> PathBuf {
         fs::create_dir_all(sysroot_dir).unwrap();
     }
 
-    // Prepare a workspace for cargo
-    let build_dir = std::mem::ManuallyDrop::new(
-        TempDir::new("cargo-careful").expect("failed to create tempdir"),
-    ); // FIXME
-    let lock_file = build_dir.path().join("Cargo.lock");
-    let manifest_file = build_dir.path().join("Cargo.toml");
-    let lib_file = build_dir.path().join("lib.rs");
-    fs::copy(rust_src.parent().unwrap().join("Cargo.lock"), &lock_file)
-        .expect("failed to copy lockfile");
-    let manifest = format!(
-        r#"
-[package]
-authors = ["The Rust Project Developers"]
-name = "sysroot"
-version = "0.0.0"
+    // Do the build.
+    sysroot::build_sysroot(
+        target,
+        sysroot::BuildMode::Build,
+        &rust_src,
+        sysroot_dir,
+        || {
+            let mut flags = Vec::new();
+            flags.extend(CAREFUL_FLAGS.iter().map(Into::into));
 
-[lib]
-path = "lib.rs"
-
-[dependencies.std]
-features = ["panic_unwind", "backtrace"]
-path = "{rust_src}/std"
-[dependencies.test]
-path = "{rust_src}/test"
-
-[patch.crates-io.rustc-std-workspace-alloc]
-path = "{rust_src}/rustc-std-workspace-alloc"
-[patch.crates-io.rustc-std-workspace-core]
-path = "{rust_src}/rustc-std-workspace-core"
-[patch.crates-io.rustc-std-workspace-std]
-path = "{rust_src}/rustc-std-workspace-std"
-        "#,
-        rust_src = rust_src
-            .to_str()
-            .expect("Rust source directoy contains non-unicode characters"),
-    );
-    File::create(&manifest_file)
-        .expect("failed to create manifest file")
-        .write_all(manifest.as_bytes())
-        .expect("failed to write manifest file");
-    File::create(&lib_file).expect("failed to create lib file");
-
-    // Run cargo.
-    let mut flags = Vec::new();
-    flags.extend(CAREFUL_FLAGS.iter().map(Into::into));
-
-    let mut cargo = cargo();
-    cargo.arg("build");
-    cargo.arg("--manifest-path");
-    cargo.arg(&manifest_file);
-    cargo.arg("--target");
-    cargo.arg(target);
-    cargo.env("CARGO_ENCODED_RUSTFLAGS", encode_flags(&flags));
-    if cargo
-        .status()
-        .unwrap_or_else(|_| panic!("failed to execute cargo for sysroot build"))
-        .success()
-        .not()
-    {
-        show_error!("sysroot build failed");
-    }
-
-    // Copy the output.
-    let out_dir = build_dir
-        .path()
-        .join("target")
-        .join(target)
-        .join("debug")
-        .join("deps");
-    let dst_dir = sysroot_dir
-        .join("lib")
-        .join("rustlib")
-        .join(target)
-        .join("lib");
-    fs::create_dir_all(&dst_dir).expect("failed to create destination dir");
-    for entry in fs::read_dir(&out_dir).expect("failed to read cargo out dir") {
-        let entry = entry.expect("failed to read cargo out dir entry");
-        assert!(
-            entry.file_type().unwrap().is_file(),
-            "cargo out dir must not contain directories"
-        );
-        let entry = entry.path();
-        fs::copy(&entry, dst_dir.join(entry.file_name().unwrap()))
-            .expect("failed to copy cargo out file");
-    }
-
-    // Cleanup.
-    drop(build_dir);
+            let mut cmd = cargo();
+            cmd.env("CARGO_ENCODED_RUSTFLAGS", encode_flags(&flags));
+            cmd
+        },
+    )
+    .unwrap();
 
     PathBuf::from(sysroot_dir)
 }
