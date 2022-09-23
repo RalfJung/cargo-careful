@@ -75,7 +75,10 @@ impl Sysroot {
         }
 
         // Make sure we start clean.
-        fs::remove_dir_all(self.target_dir()).context("failed to clean sysroot target dir")?;
+        let target_dir = self.target_dir();
+        if target_dir.exists() {
+            fs::remove_dir_all(&target_dir).context("failed to clean sysroot target dir")?;
+        }
 
         // Prepare a workspace for cargo
         let build_dir = TempDir::new("cargo-careful").context("failed to create tempdir")?;
@@ -157,7 +160,7 @@ path = "{src_dir}/rustc-std-workspace-std"
             .join(&self.target)
             .join("release")
             .join("deps");
-        let dst_dir = self.target_dir().join("lib");
+        let dst_dir = target_dir.join("lib");
         fs::create_dir_all(&dst_dir).context("failed to create destination dir")?;
         for entry in fs::read_dir(&out_dir).context("failed to read cargo out dir")? {
             let entry = entry.context("failed to read cargo out dir entry")?;
