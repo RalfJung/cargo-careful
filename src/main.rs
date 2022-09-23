@@ -200,6 +200,10 @@ fn build_sysroot(auto: bool, target: &str) -> PathBuf {
     }
 
     // Do the build.
+    eprint!("Preparing a sysroot (target: {target})... ");
+    if !auto {
+        eprintln!();
+    }
     Sysroot::new(sysroot_dir, target)
         .build_from_source(&rust_src, sysroot::BuildMode::Build, rustc, || {
             let mut flags = Vec::new();
@@ -207,9 +211,18 @@ fn build_sysroot(auto: bool, target: &str) -> PathBuf {
 
             let mut cmd = cargo();
             cmd.env("CARGO_ENCODED_RUSTFLAGS", encode_flags(&flags));
+            if auto {
+                cmd.stdout(process::Stdio::null());
+                cmd.stderr(process::Stdio::null());
+            }
             cmd
         })
         .unwrap();
+    if auto {
+        eprintln!("done");
+    } else {
+        eprintln!("A sysroot is now available in `{}`.", sysroot_dir.display());
+    }
 
     PathBuf::from(sysroot_dir)
 }
