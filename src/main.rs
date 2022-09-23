@@ -6,6 +6,8 @@ use std::ops::Not;
 use std::path::{Path, PathBuf};
 use std::process::{self, Command};
 
+use sysroot::Sysroot;
+
 mod sysroot;
 
 const CAREFUL_FLAGS: &[&str] = &[
@@ -198,21 +200,16 @@ fn build_sysroot(auto: bool, target: &str) -> PathBuf {
     }
 
     // Do the build.
-    sysroot::build_sysroot(
-        target,
-        sysroot::BuildMode::Build,
-        &rust_src,
-        sysroot_dir,
-        || {
+    Sysroot::new(sysroot_dir, target)
+        .build_from_source(&rust_src, sysroot::BuildMode::Build, rustc, || {
             let mut flags = Vec::new();
             flags.extend(CAREFUL_FLAGS.iter().map(Into::into));
 
             let mut cmd = cargo();
             cmd.env("CARGO_ENCODED_RUSTFLAGS", encode_flags(&flags));
             cmd
-        },
-    )
-    .unwrap();
+        })
+        .unwrap();
 
     PathBuf::from(sysroot_dir)
 }
