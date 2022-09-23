@@ -61,7 +61,7 @@ impl Sysroot {
             .ok()?
             .read_to_string(&mut hash)
             .ok()?;
-        Some(hash.parse().ok()?)
+        hash.parse().ok()
     }
 
     pub fn build_from_source(

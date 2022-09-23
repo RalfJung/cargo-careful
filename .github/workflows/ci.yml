@@ -34,5 +34,7 @@ jobs:
         with:
           toolchain: stable
           override: true
-      - name: Check build
-        run: cargo check
+      - name: rustfmt
+        run: cargo fmt --check
+      - name: clippy
+        run: cargo clippy -- -D warnings
