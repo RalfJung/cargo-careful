@@ -5,12 +5,21 @@ on: [push, pull_request]
 jobs:
   test:
     name: Test Suite
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust:
+          - nightly
+          - nightly-2022-01-01
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly
+          toolchain: ${{ matrix.rust }}
           override: true
       - name: Run tests
         working-directory: test
