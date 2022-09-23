@@ -98,7 +98,7 @@ path = "{src_dir}/rustc-std-workspace-std"
         .path()
         .join("target")
         .join(target)
-        .join("debug")
+        .join("release")
         .join("deps");
     let dst_dir = sysroot_dir
         .join("lib")
