@@ -109,20 +109,22 @@ path = "lib.rs"
 
 [dependencies.std]
 features = ["panic_unwind", "backtrace"]
-path = "{src_dir}/std"
+path = {src_dir_std:?}
 [dependencies.test]
-path = "{src_dir}/test"
+path = {src_dir_test:?}
 
 [patch.crates-io.rustc-std-workspace-core]
-path = "{src_dir}/rustc-std-workspace-core"
+path = {src_dir_workspace_core:?}
 [patch.crates-io.rustc-std-workspace-alloc]
-path = "{src_dir}/rustc-std-workspace-alloc"
+path = {src_dir_workspace_alloc:?}
 [patch.crates-io.rustc-std-workspace-std]
-path = "{src_dir}/rustc-std-workspace-std"
+path = {src_dir_workspace_std:?}
     "#,
-            src_dir = src_dir
-                .to_str()
-                .context("rust source directoy contains non-unicode characters")?,
+            src_dir_std = src_dir.join("std"),
+            src_dir_test = src_dir.join("test"),
+            src_dir_workspace_core = src_dir.join("rustc-std-workspace-core"),
+            src_dir_workspace_alloc = src_dir.join("rustc-std-workspace-alloc"),
+            src_dir_workspace_std = src_dir.join("rustc-std-workspace-std"),
         );
         File::create(&manifest_file)
             .context("failed to create manifest file")?
