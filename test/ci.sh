@@ -2,6 +2,7 @@
 set -e
 
 # setup
+export RUSTFLAGS="-D warnings"
 cargo install --path ..
 
 # test
