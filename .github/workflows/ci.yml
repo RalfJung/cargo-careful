@@ -9,7 +9,7 @@ jobs:
       matrix:
         rust:
           - nightly
-          - nightly-2022-01-01
+          - nightly-2022-07-01
         os:
           - ubuntu-latest
           - macos-latest
