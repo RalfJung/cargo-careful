@@ -214,7 +214,7 @@ fn build_sysroot(auto: bool, target: &str) -> PathBuf {
             }
             cmd
         })
-        .unwrap();
+        .expect("failed to build sysroot; run `cargo careful setup` to see what went wrong");
     if auto {
         eprintln!("done");
     } else {
