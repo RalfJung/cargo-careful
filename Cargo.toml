@@ -9,3 +9,5 @@ description = "Execute Rust code carefully, with extra checking along the way"
 
 [dependencies]
 directories = "3"
+tempdir = "0.3"
+rustc_version = "0.4"
