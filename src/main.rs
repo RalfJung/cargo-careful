@@ -71,10 +71,7 @@ pub fn get_arg_flag_values(name: &str) -> impl Iterator<Item = String> + '_ {
     impl Iterator for ArgFlagValueIter<'_> {
         type Item = String;
         fn next(&mut self) -> Option<String> {
-            let Some(args) = self.args.as_mut() else {
-                // We already canceled this iterator.
-                return None;
-            };
+            let args = self.args.as_mut()?;
             loop {
                 let arg = args.next()?;
                 if arg == "--" {
@@ -230,9 +227,9 @@ fn build_sysroot(auto: bool, target: &str) -> PathBuf {
 fn cargo_careful(mut args: env::Args) {
     let target = get_arg_flag_value("--target").unwrap_or_else(|| rustc_version_info().host);
 
-    let Some(subcommand) = args.next() else {
+    let subcommand = args.next().unwrap_or_else(|| {
         show_error!("`cargo careful` needs to be called with a subcommand (`run`, `test`)");
-    };
+    });
     let subcommand = match &*subcommand {
         "setup" => {
             // Just build the sysroot and be done.
@@ -267,11 +264,11 @@ fn main() {
     // Skip binary name.
     args.next().unwrap();
 
-    let Some(first) = args.next() else {
+    let first = args.next().unwrap_or_else(|| {
         show_error!(
             "`cargo-careful` called without first argument; please only invoke this binary through `cargo careful`"
         )
-    };
+    });
     match first.as_str() {
         "careful" => {
             // It's us!

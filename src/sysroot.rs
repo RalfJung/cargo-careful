@@ -1,7 +1,7 @@
 use std::collections::hash_map::DefaultHasher;
 use std::fs::{self, File};
 use std::hash::{Hash, Hasher};
-use std::io::{self, Write};
+use std::io::{Read, Write};
 use std::ops::Not;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -56,7 +56,11 @@ impl Sysroot {
 
     fn sysroot_read_hash(&self) -> Option<u64> {
         let hash_file = self.hash_file();
-        let hash = io::read_to_string(File::open(&hash_file).ok()?).ok()?;
+        let mut hash = String::new();
+        File::open(&hash_file)
+            .ok()?
+            .read_to_string(&mut hash)
+            .ok()?;
         Some(hash.parse().ok()?)
     }
 
