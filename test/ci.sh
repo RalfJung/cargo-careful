@@ -6,3 +6,4 @@ cargo install --path ..
 
 # test
 cargo careful run
+cargo careful test
