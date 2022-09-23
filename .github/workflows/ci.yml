@@ -9,7 +9,7 @@ jobs:
       matrix:
         rust:
           - nightly
-          - nightly-2022-07-01
+          - nightly-2022-08-16 # needs -Zextra-const-ub-checks
         os:
           - ubuntu-latest
           - macos-latest
