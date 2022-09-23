@@ -19,9 +19,8 @@ cargo +nightly careful test
 Running `cargo careful` requires a recent nightly toolchain. You can also `cargo +nightly careful
 run` to execute a binary crate. All `cargo test` and `cargo run` flags are supported.
 
-The first time you run `cargo careful`, it needs to run some setup steps, which might require
-installing the `rustc-src` rustup component -- the tool will offer to do that for you if the
-component is not installed yet.
+The first time you run `cargo careful`, it needs to run some setup steps, which requires the
+`rustc-src` rustup component -- the tool will offer to do install it for you if needed.
 
 ## What does it do?
 
@@ -29,7 +28,7 @@ The most important thing `cargo careful` does is that it builds the standard lib
 assertions. The standard library already contains quite a few sanity checks that are enabled as
 debug assertions, but the usual rustup distrubtion compiles them all away to avoid run-time checks.
 Furthermore, `cargo careful` sets some nightly-only flags that tell rustc to insert extra run-time
-checks for to guard some unsafe operations against UB.
+checks to guard some unsafe operations against UB.
 
 Here are some of the checks this enables:
 
@@ -39,7 +38,12 @@ Here are some of the checks this enables:
 - `{NonNull,NonZero*,...}::new_unchecked` check that the value is valid
 - plenty of internal consistency checks in the collection types
 - `mem::zeroed` and the deprecated `mem::uninitiailized` panic if the type does not allow that kind
-  of initiailization
+  of initialization
 
-Note that some of these checks cause an apribt `abort` (on Unix, this is a SIGILL) instead of
+Note that some of these checks cause an abrupt `abort` (on Unix, this is a SIGILL) instead of
 panicking to reduce their performance impact.
+
+That said, there is a lot of Undefined Behavior that is *not* detected by `cargo careful`; check out
+[Miri](https://github.com/rust-lang/miri) if you want to be fully covered. The advantage of `cargo
+careful` over Miri is that it works on all code, supprts using arbitrary system and C FFI functions,
+and is much faster.
