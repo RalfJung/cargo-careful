@@ -21,6 +21,9 @@ pub struct Sysroot {
     target: String,
 }
 
+/// Hash file name (in target/lib directory).
+const HASH_FILE_NAME: &str = ".cargo-careful-hash";
+
 impl Sysroot {
     pub fn new(sysroot_dir: &Path, target: &str) -> Self {
         Sysroot {
@@ -36,10 +39,6 @@ impl Sysroot {
             .join(&self.target)
     }
 
-    fn hash_file(&self) -> PathBuf {
-        self.target_dir().join(".cargo-careful-hash")
-    }
-
     /// Computes the hash for the sysroot, so that we know whether we have to rebuild.
     fn sysroot_compute_hash(&self, src_dir: &Path, rustc_version: &VersionMeta) -> u64 {
         let mut hasher = DefaultHasher::new();
@@ -53,7 +52,7 @@ impl Sysroot {
     }
 
     fn sysroot_read_hash(&self) -> Option<u64> {
-        let hash_file = self.hash_file();
+        let hash_file = self.target_dir().join("lib").join(HASH_FILE_NAME);
         let mut hash = String::new();
         File::open(&hash_file)
             .ok()?
@@ -74,12 +73,6 @@ impl Sysroot {
         if self.sysroot_read_hash() == Some(cur_hash) {
             // Already done!
             return Ok(());
-        }
-
-        // Make sure we start clean.
-        let target_dir = self.target_dir();
-        if target_dir.exists() {
-            fs::remove_dir_all(&target_dir).context("failed to clean sysroot target dir")?;
         }
 
         // Prepare a workspace for cargo
@@ -157,15 +150,15 @@ path = {src_dir_workspace_std:?}
             anyhow::bail!("sysroot build failed");
         }
 
-        // Copy the output.
+        // Copy the output to a staging dir (so that we can do the final installation atomically.)
+        let staging_dir = TempDir::new_in(&self.sysroot_dir, "cargo-careful")
+            .context("failed to create staging dir")?;
         let out_dir = build_dir
             .path()
             .join("target")
             .join(&self.target)
             .join("release")
             .join("deps");
-        let dst_dir = target_dir.join("lib");
-        fs::create_dir_all(&dst_dir).context("failed to create destination dir")?;
         for entry in fs::read_dir(&out_dir).context("failed to read cargo out dir")? {
             let entry = entry.context("failed to read cargo out dir entry")?;
             assert!(
@@ -173,18 +166,29 @@ path = {src_dir_workspace_std:?}
                 "cargo out dir must not contain directories"
             );
             let entry = entry.path();
-            fs::copy(&entry, dst_dir.join(entry.file_name().unwrap()))
+            fs::copy(&entry, staging_dir.path().join(entry.file_name().unwrap()))
                 .context("failed to copy cargo out file")?;
         }
 
-        // Write the hash file.
-        File::create(self.hash_file())
+        // Write the hash file (into the staging dir).
+        File::create(staging_dir.path().join(HASH_FILE_NAME))
             .context("failed to create hash file")?
             .write_all(cur_hash.to_string().as_bytes())
             .context("failed to write hash file")?;
 
-        // Cleanup.
-        drop(build_dir);
+        // Atomic copy to final destination via rename.
+        let target_lib_dir = self.target_dir().join("lib");
+        if target_lib_dir.exists() {
+            // Remove potentially outdated files.
+            fs::remove_dir_all(&target_lib_dir).context("failed to clean sysroot target dir")?;
+        }
+        fs::create_dir_all(
+            target_lib_dir
+                .parent()
+                .expect("target/lib dir must have a parent"),
+        )
+        .context("failed to create target directory")?;
+        fs::rename(staging_dir.path(), target_lib_dir).context("failed installing sysroot")?;
 
         Ok(())
     }
