@@ -1,22 +1,19 @@
 use std::env;
 use std::ffi::{OsStr, OsString};
-use std::fs;
 use std::io::{self, Write};
 use std::ops::Not;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::{self, Command};
 
+use rustc_build_sysroot::{BuildMode, Sysroot};
 use rustc_version::VersionMeta;
-
-use sysroot::Sysroot;
-
-mod sysroot;
 
 const CAREFUL_FLAGS: &[&str] = &[
     "-Zstrict-init-checks",
     "-Zextra-const-ub-checks",
     "-Cdebug-assertions=on",
 ];
+const STD_FEATURES: &[&str] = &["panic_unwind", "backtrace"];
 
 pub fn show_error(msg: &impl std::fmt::Display) -> ! {
     eprintln!("fatal error: {msg}");
@@ -35,8 +32,8 @@ pub fn rustc() -> Command {
     Command::new(env::var_os("RUSTC").unwrap_or_else(|| OsString::from("rustc")))
 }
 
-pub fn rustc_version_info() -> rustc_version::VersionMeta {
-    rustc_version::VersionMeta::for_command(rustc()).expect("failed to determine rustc version")
+pub fn rustc_version_info() -> VersionMeta {
+    VersionMeta::for_command(rustc()).expect("failed to determine rustc version")
 }
 
 /// Execute the `Command`, where possible by replacing the current process with a new process
@@ -152,26 +149,9 @@ fn build_sysroot(auto: bool, target: &str, rustc_version: &VersionMeta) -> PathB
         }
         None => {
             // Check for `rust-src` rustup component.
-            let output = rustc()
-                .args(["--print", "sysroot"])
-                .output()
-                .expect("failed to determine sysroot");
-            if !output.status.success() {
-                show_error!(
-                    "Failed to determine sysroot; rustc said:\n{}",
-                    String::from_utf8_lossy(&output.stderr).trim_end()
-                );
-            }
-            let sysroot = std::str::from_utf8(&output.stdout).unwrap();
-            let sysroot = Path::new(sysroot.trim_end_matches('\n'));
-            // Check for `$SYSROOT/lib/rustlib/src/rust/library`; test if that contains `std/Cargo.toml`.
-            let rustup_src = sysroot
-                .join("lib")
-                .join("rustlib")
-                .join("src")
-                .join("rust")
-                .join("library");
-            if !rustup_src.join("std").join("Cargo.toml").exists() {
+            let rustup_src = rustc_build_sysroot::rustc_sysroot_src(rustc())
+                .expect("could not determine sysroot source directory");
+            if !rustup_src.exists() {
                 // Ask the user to install the `rust-src` component, and use that.
                 let mut cmd = Command::new("rustup");
                 cmd.args(["component", "add", "rust-src"]);
@@ -184,19 +164,10 @@ fn build_sysroot(auto: bool, target: &str, rustc_version: &VersionMeta) -> PathB
             rustup_src
         }
     };
-    if !rust_src.join("std").join("Cargo.toml").exists() {
-        show_error!(
-            "given Rust source directory `{}` does seem to contain a standard library source tree",
-            rust_src.display()
-        );
-    }
 
     // Determine where to put the sysroot.
     let user_dirs = directories::ProjectDirs::from("de", "ralfj", "cargo-careful").unwrap();
     let sysroot_dir = user_dirs.cache_dir();
-    if !sysroot_dir.exists() {
-        fs::create_dir_all(sysroot_dir).unwrap();
-    }
 
     // Do the build.
     eprint!("Preparing a sysroot (target: {target})... ");
@@ -204,18 +175,24 @@ fn build_sysroot(auto: bool, target: &str, rustc_version: &VersionMeta) -> PathB
         eprintln!();
     }
     Sysroot::new(sysroot_dir, target)
-        .build_from_source(&rust_src, sysroot::BuildMode::Build, rustc_version, || {
-            let mut flags = Vec::new();
-            flags.extend(CAREFUL_FLAGS.iter().map(Into::into));
+        .build_from_source(
+            &rust_src,
+            BuildMode::Build,
+            STD_FEATURES,
+            rustc_version,
+            || {
+                let mut flags = Vec::new();
+                flags.extend(CAREFUL_FLAGS.iter().map(Into::into));
 
-            let mut cmd = cargo();
-            cmd.env("CARGO_ENCODED_RUSTFLAGS", encode_flags(&flags));
-            if auto {
-                cmd.stdout(process::Stdio::null());
-                cmd.stderr(process::Stdio::null());
-            }
-            cmd
-        })
+                let mut cmd = cargo();
+                cmd.env("CARGO_ENCODED_RUSTFLAGS", encode_flags(&flags));
+                if auto {
+                    cmd.stdout(process::Stdio::null());
+                    cmd.stderr(process::Stdio::null());
+                }
+                cmd
+            },
+        )
         .expect("failed to build sysroot; run `cargo careful setup` to see what went wrong");
     if auto {
         eprintln!("done");
