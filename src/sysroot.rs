@@ -70,7 +70,7 @@ impl Sysroot {
         cargo_cmd: impl Fn() -> Command,
     ) -> Result<()> {
         // Check if we even need to do anything.
-        let cur_hash = self.sysroot_compute_hash(src_dir, &rustc_version);
+        let cur_hash = self.sysroot_compute_hash(src_dir, rustc_version);
         if self.sysroot_read_hash() == Some(cur_hash) {
             // Already done!
             return Ok(());
