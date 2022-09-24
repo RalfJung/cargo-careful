@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use anyhow::{Context, Result};
+use rustc_version::VersionMeta;
 use tempdir::TempDir;
 
 #[allow(unused)]
@@ -40,16 +41,13 @@ impl Sysroot {
     }
 
     /// Computes the hash for the sysroot, so that we know whether we have to rebuild.
-    fn sysroot_compute_hash(&self, src_dir: &Path, rustc_cmd: &impl Fn() -> Command) -> u64 {
-        // For now, we just hash in the source dir and rustc commit.
-        // Ideally we'd recursively hash the entire folder but that sounds slow?
+    fn sysroot_compute_hash(&self, src_dir: &Path, rustc_version: &VersionMeta) -> u64 {
         let mut hasher = DefaultHasher::new();
 
+        // For now, we just hash in the source dir and rustc commit.
+        // Ideally we'd recursively hash the entire folder but that sounds slow?
         src_dir.hash(&mut hasher);
-
-        let rustc_info = rustc_version::VersionMeta::for_command(rustc_cmd())
-            .expect("failed to determine rustc version");
-        rustc_info.commit_hash.hash(&mut hasher);
+        rustc_version.commit_hash.hash(&mut hasher);
 
         hasher.finish()
     }
@@ -68,11 +66,11 @@ impl Sysroot {
         &self,
         src_dir: &Path,
         mode: BuildMode,
-        rustc_cmd: impl Fn() -> Command,
+        rustc_version: &VersionMeta,
         cargo_cmd: impl Fn() -> Command,
     ) -> Result<()> {
         // Check if we even need to do anything.
-        let cur_hash = self.sysroot_compute_hash(src_dir, &rustc_cmd);
+        let cur_hash = self.sysroot_compute_hash(src_dir, &rustc_version);
         if self.sysroot_read_hash() == Some(cur_hash) {
             // Already done!
             return Ok(());

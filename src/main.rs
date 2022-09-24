@@ -6,6 +6,8 @@ use std::ops::Not;
 use std::path::{Path, PathBuf};
 use std::process::{self, Command};
 
+use rustc_version::VersionMeta;
+
 use sysroot::Sysroot;
 
 mod sysroot;
@@ -138,7 +140,7 @@ pub fn ask_to_run(mut cmd: Command, ask: bool, text: &str) {
     }
 }
 
-fn build_sysroot(auto: bool, target: &str) -> PathBuf {
+fn build_sysroot(auto: bool, target: &str, rustc_version: &VersionMeta) -> PathBuf {
     // Determine where the rust sources are located.  The env var manually setting the source
     // trumps auto-detection.
     let rust_src = std::env::var_os("RUST_LIB_SRC");
@@ -202,7 +204,7 @@ fn build_sysroot(auto: bool, target: &str) -> PathBuf {
         eprintln!();
     }
     Sysroot::new(sysroot_dir, target)
-        .build_from_source(&rust_src, sysroot::BuildMode::Build, rustc, || {
+        .build_from_source(&rust_src, sysroot::BuildMode::Build, rustc_version, || {
             let mut flags = Vec::new();
             flags.extend(CAREFUL_FLAGS.iter().map(Into::into));
 
@@ -225,7 +227,8 @@ fn build_sysroot(auto: bool, target: &str) -> PathBuf {
 }
 
 fn cargo_careful(mut args: env::Args) {
-    let target = get_arg_flag_value("--target").unwrap_or_else(|| rustc_version_info().host);
+    let rustc_version = rustc_version_info();
+    let target = get_arg_flag_value("--target").unwrap_or_else(|| rustc_version.host.clone());
 
     let subcommand = args.next().unwrap_or_else(|| {
         show_error!("`cargo careful` needs to be called with a subcommand (`run`, `test`)");
@@ -233,7 +236,7 @@ fn cargo_careful(mut args: env::Args) {
     let subcommand = match &*subcommand {
         "setup" => {
             // Just build the sysroot and be done.
-            build_sysroot(/*auto*/ false, &target);
+            build_sysroot(/*auto*/ false, &target, &rustc_version);
             return;
         }
         "test" | "t" | "run" | "r" | "nextest" => subcommand,
@@ -244,7 +247,7 @@ fn cargo_careful(mut args: env::Args) {
     };
 
     // Let's get ourselves as sysroot.
-    let sysroot = build_sysroot(/*auto*/ true, &target);
+    let sysroot = build_sysroot(/*auto*/ true, &target, &rustc_version);
 
     // Invoke cargo for the real work.
     let mut flags = Vec::new();
