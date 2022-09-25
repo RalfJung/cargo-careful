@@ -233,7 +233,10 @@ fn cargo_careful(mut args: env::Args) {
     let mut cmd = cargo();
     cmd.arg(subcommand);
     cmd.args(args);
-    cmd.env("CARGO_ENCODED_RUSTFLAGS", rustc_build_sysroot::encode_rustflags(flags));
+    cmd.env(
+        "CARGO_ENCODED_RUSTFLAGS",
+        rustc_build_sysroot::encode_rustflags(flags),
+    );
     exec(cmd);
 }
 
