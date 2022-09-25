@@ -1,11 +1,11 @@
 use std::env;
-use std::ffi::{OsStr, OsString};
+use std::ffi::OsString;
 use std::io::{self, Write};
 use std::ops::Not;
 use std::path::PathBuf;
 use std::process::{self, Command};
 
-use rustc_build_sysroot::{BuildMode, Sysroot};
+use rustc_build_sysroot::{BuildMode, Sysroot, SysrootConfig};
 use rustc_version::VersionMeta;
 
 const CAREFUL_FLAGS: &[&str] = &[
@@ -54,10 +54,6 @@ pub fn exec(mut cmd: Command) -> ! {
         let error = cmd.exec();
         Err(error).expect("failed to run command")
     }
-}
-
-fn encode_flags(flags: &[OsString]) -> OsString {
-    flags.join(OsStr::new("\x1f"))
 }
 
 /// Gets the values of a `--flag`.
@@ -178,19 +174,21 @@ fn build_sysroot(auto: bool, target: &str, rustc_version: &VersionMeta) -> PathB
         .build_from_source(
             &rust_src,
             BuildMode::Build,
-            STD_FEATURES,
+            SysrootConfig::WithStd {
+                std_features: STD_FEATURES,
+            },
             rustc_version,
             || {
                 let mut flags = Vec::new();
                 flags.extend(CAREFUL_FLAGS.iter().map(Into::into));
 
                 let mut cmd = cargo();
-                cmd.env("CARGO_ENCODED_RUSTFLAGS", encode_flags(&flags));
                 if auto {
                     cmd.stdout(process::Stdio::null());
                     cmd.stderr(process::Stdio::null());
                 }
-                cmd
+
+                (cmd, flags)
             },
         )
         .expect("failed to build sysroot; run `cargo careful setup` to see what went wrong");
@@ -235,7 +233,7 @@ fn cargo_careful(mut args: env::Args) {
     let mut cmd = cargo();
     cmd.arg(subcommand);
     cmd.args(args);
-    cmd.env("CARGO_ENCODED_RUSTFLAGS", encode_flags(&flags));
+    cmd.env("CARGO_ENCODED_RUSTFLAGS", rustc_build_sysroot::encode_rustflags(flags));
     exec(cmd);
 }
 
