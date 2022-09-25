@@ -166,7 +166,7 @@ fn build_sysroot(auto: bool, target: &str, rustc_version: &VersionMeta) -> PathB
     let sysroot_dir = user_dirs.cache_dir();
 
     // Do the build.
-    eprint!("Preparing a sysroot (target: {target})... ");
+    eprint!("Preparing a careful sysroot (target: {target})... ");
     if !auto {
         eprintln!();
     }
