@@ -6,6 +6,7 @@ use std::ops::Not;
 use std::path::PathBuf;
 use std::process::{self, Command};
 
+use cargo_metadata::{Metadata, MetadataCommand};
 use rustc_build_sysroot::{BuildMode, Sysroot, SysrootConfig};
 use rustc_version::VersionMeta;
 
@@ -126,6 +127,41 @@ pub fn num_arg_flag(name: &str) -> usize {
         .count()
 }
 
+// Computes the extra flags that need to be passed to cargo to make it behave like the current
+// cargo invocation.
+fn cargo_extra_flags() -> Vec<String> {
+    let mut flags = Vec::new();
+    // `-Zunstable-options` is required by `--config`.
+    flags.push("-Zunstable-options".to_string());
+
+    // Forward `--config` flags.
+    let config_flag = "--config";
+    for arg in get_arg_flag_values(config_flag) {
+        flags.push(config_flag.to_string());
+        flags.push(arg);
+    }
+
+    // Forward `--manifest-path`.
+    let manifest_flag = "--manifest-path";
+    if let Some(manifest) = get_arg_flag_value(manifest_flag) {
+        flags.push(manifest_flag.to_string());
+        flags.push(manifest);
+    }
+
+    // Forwarding `--target-dir` would make sense, but `cargo metadata` does not support that flag.
+
+    flags
+}
+
+pub fn get_cargo_metadata() -> Metadata {
+    // This will honor the `CARGO` env var the same way our `cargo()` does.
+    MetadataCommand::new()
+        .no_deps()
+        .other_options(cargo_extra_flags())
+        .exec()
+        .unwrap()
+}
+
 pub fn ask_to_run(mut cmd: Command, ask: bool, text: &str) {
     // Disable interactive prompts in CI (GitHub Actions, Travis, AppVeyor, etc).
     // Azure doesn't set `CI` though (nothing to see here, just Microsoft being Microsoft),
@@ -226,6 +262,7 @@ fn build_sysroot(auto: bool, target: &str, rustc_version: &VersionMeta) -> PathB
 
 fn cargo_careful(mut args: env::Args) {
     let rustc_version = rustc_version_info();
+    let cargo_metadata = get_cargo_metadata();
     let target = get_arg_flag_value("--target").unwrap_or_else(|| rustc_version.host.clone());
     let verbose = num_arg_flag("-v");
 
@@ -248,6 +285,17 @@ fn cargo_careful(mut args: env::Args) {
     // Let's get ourselves as sysroot.
     let sysroot = build_sysroot(/*auto*/ true, &target, &rustc_version);
 
+    // target-dir handling. cargo does not make this easy...
+    if get_arg_flag_value("--target-dir").is_some() {
+        // Cargo does not support overwriting CLI falgs with later CLI flags, and `cargo metadata`
+        // does not support `--target-dir`, so handling this properly rewquires some annoying
+        // surgery. Let's just not support this for now.
+        show_error!("`cargo careful` currently does not support the `--target-dir` flag");
+    }
+    let mut target_dir = cargo_metadata.target_directory;
+    // Set `--target-dir` to `careful` inside the original target directory.
+    target_dir.push("careful");
+
     // Invoke cargo for the real work.
     let mut flags = Vec::new();
     flags.push("--sysroot".into());
@@ -256,7 +304,13 @@ fn cargo_careful(mut args: env::Args) {
 
     let mut cmd = cargo();
     cmd.arg(subcommand);
-    cmd.args(args);
+    // Forward user-provided cargo flags until `--`.
+    cmd.args((&mut args).take_while(|arg| arg != "--"));
+    // Inject our own flags.
+    cmd.arg("--target-dir").arg(target_dir);
+    // Forward remaining user-provided flags.
+    cmd.arg("--").args(args);
+    // Set up environment.
     cmd.env(
         "CARGO_ENCODED_RUSTFLAGS",
         rustc_build_sysroot::encode_rustflags(flags),
