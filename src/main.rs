@@ -257,9 +257,14 @@ fn cargo_careful(mut args: env::Args) {
     let mut cmd = cargo();
     cmd.arg(subcommand);
     cmd.args(args);
+    // Setup environment. Both rustc and rustdoc need these flags.
     cmd.env(
         "CARGO_ENCODED_RUSTFLAGS",
-        rustc_build_sysroot::encode_rustflags(flags),
+        rustc_build_sysroot::encode_rustflags(&flags),
+    );
+    cmd.env(
+        "CARGO_ENCODED_RUSTDOCFLAGS",
+        rustc_build_sysroot::encode_rustflags(&flags),
     );
     // Run it!
     exec(cmd, (verbose > 0).then_some("[cargo-careful] "));
