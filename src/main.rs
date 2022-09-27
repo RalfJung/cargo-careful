@@ -1,5 +1,6 @@
 use std::env;
 use std::ffi::OsString;
+use std::fmt::Write as _;
 use std::io::{self, Write};
 use std::ops::Not;
 use std::path::PathBuf;
@@ -38,7 +39,21 @@ pub fn rustc_version_info() -> VersionMeta {
 
 /// Execute the `Command`, where possible by replacing the current process with a new process
 /// described by the `Command`. Then exit this process with the exit code of the new process.
-pub fn exec(mut cmd: Command) -> ! {
+///
+/// If `verbose` is `Some(prefix)`, print the prefix followed by the command to invoke.
+pub fn exec(mut cmd: Command, verbose: Option<&str>) -> ! {
+    if let Some(prefix) = verbose {
+        let mut out = String::from(prefix);
+        for (var, val) in cmd.get_envs() {
+            if let Some(val) = val {
+                write!(out, "{}={:?} ", var.to_string_lossy(), val).unwrap();
+            } else {
+                panic!("unsetting env vars not current supported by debug printing");
+            }
+        }
+        write!(out, "{cmd:?}").unwrap();
+        eprintln!("{out}");
+    }
     // On non-Unix imitate POSIX exec as closely as we can
     #[cfg(not(unix))]
     {
@@ -101,6 +116,14 @@ pub fn get_arg_flag_values(name: &str) -> impl Iterator<Item = String> + '_ {
 /// Gets the value of a `--flag`.
 pub fn get_arg_flag_value(name: &str) -> Option<String> {
     get_arg_flag_values(name).next()
+}
+
+/// Determines how many times a `--flag` is present.
+pub fn num_arg_flag(name: &str) -> usize {
+    env::args()
+        .take_while(|val| val != "--")
+        .filter(|val| val == name)
+        .count()
 }
 
 pub fn ask_to_run(mut cmd: Command, ask: bool, text: &str) {
@@ -204,6 +227,7 @@ fn build_sysroot(auto: bool, target: &str, rustc_version: &VersionMeta) -> PathB
 fn cargo_careful(mut args: env::Args) {
     let rustc_version = rustc_version_info();
     let target = get_arg_flag_value("--target").unwrap_or_else(|| rustc_version.host.clone());
+    let verbose = num_arg_flag("-v");
 
     let subcommand = args.next().unwrap_or_else(|| {
         show_error!("`cargo careful` needs to be called with a subcommand (`run`, `test`)");
@@ -237,7 +261,8 @@ fn cargo_careful(mut args: env::Args) {
         "CARGO_ENCODED_RUSTFLAGS",
         rustc_build_sysroot::encode_rustflags(flags),
     );
-    exec(cmd);
+    // Run it!
+    exec(cmd, (verbose > 0).then_some("[cargo-careful] "));
 }
 
 fn main() {
