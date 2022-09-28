@@ -48,7 +48,9 @@ pub fn exec(mut cmd: Command, verbose: Option<&str>) -> ! {
             if let Some(val) = val {
                 write!(out, "{}={:?} ", var.to_string_lossy(), val).unwrap();
             } else {
-                panic!("unsetting env vars not current supported by debug printing");
+                // Existing env vars are always in quotes, so `<deleted>` cannot be confused with an
+                // env var set to the value `"<deleted>"`.
+                write!(out, "{}=<deleted> ", var.to_string_lossy()).unwrap();
             }
         }
         write!(out, "{cmd:?}").unwrap();
