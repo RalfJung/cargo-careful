@@ -13,6 +13,7 @@ const CAREFUL_FLAGS: &[&str] = &[
     "-Zstrict-init-checks",
     "-Zextra-const-ub-checks",
     "-Cdebug-assertions=on",
+    "-Coverflow-checks=on",
 ];
 const STD_FEATURES: &[&str] = &["panic_unwind", "backtrace"];
 
