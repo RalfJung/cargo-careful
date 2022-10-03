@@ -234,21 +234,39 @@ fn cargo_careful(mut args: env::Args) {
     let subcommand = args.next().unwrap_or_else(|| {
         show_error!("`cargo careful` needs to be called with a subcommand (`run`, `test`)");
     });
+    // `None` means "just the setup, please".
     let subcommand = match &*subcommand {
-        "setup" => {
-            // Just build the sysroot and be done.
-            build_sysroot(/*auto*/ false, &target, &rustc_version);
-            return;
-        }
-        "test" | "t" | "run" | "r" | "nextest" => subcommand,
+        "setup" => None,
+        "test" | "t" | "run" | "r" | "nextest" => Some(subcommand),
         _ =>
             show_error!(
                 "`cargo careful` supports the following subcommands: `run`, `test`, `nextest`, and `setup`."
             ),
     };
 
+    // Go through the args to figure out what is for cargo and what is for us.
+    let mut cargo_args = Vec::new();
+    for arg in args.by_ref() {
+        if let Some(_careful_arg) = arg.strip_prefix("-Zcareful-") {
+            // A flag for us! So far we don't support any, though.
+            show_error!("unsupported careful flag `{}`", arg);
+        } else if arg == "--" {
+            // The rest is definitely not for us.
+            break;
+        }
+        // Forward regular argument.
+        cargo_args.push(arg);
+    }
+    // The rest is for cargo to forward to the binary / test runner.
+    cargo_args.push("--".into());
+    cargo_args.extend(args);
+
     // Let's get ourselves as sysroot.
-    let sysroot = build_sysroot(/*auto*/ true, &target, &rustc_version);
+    let sysroot = build_sysroot(/*auto*/ subcommand.is_some(), &target, &rustc_version);
+    let Some(subcommand) = subcommand else {
+        // We just did the setup.
+        return
+    };
 
     // Invoke cargo for the real work.
     let mut flags = Vec::new();
@@ -258,7 +276,7 @@ fn cargo_careful(mut args: env::Args) {
 
     let mut cmd = cargo();
     cmd.arg(subcommand);
-    cmd.args(args);
+    cmd.args(cargo_args);
     // Setup environment. Both rustc and rustdoc need these flags.
     cmd.env(
         "CARGO_ENCODED_RUSTFLAGS",
