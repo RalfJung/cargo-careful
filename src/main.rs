@@ -6,6 +6,7 @@ use std::ops::Not;
 use std::path::PathBuf;
 use std::process::{self, Command};
 
+use anyhow::{bail, Context, Result};
 use rustc_build_sysroot::{BuildMode, SysrootBuilder, SysrootConfig};
 use rustc_version::VersionMeta;
 
@@ -16,6 +17,7 @@ const CAREFUL_FLAGS: &[&str] = &[
     "-Zstrict-init-checks",
 ];
 const STD_FEATURES: &[&str] = &["panic_unwind", "backtrace"];
+const DEFAULT_SANITIZER: &str = "address";
 
 pub fn show_error(msg: &impl std::fmt::Display) -> ! {
     eprintln!("fatal error: {msg}");
@@ -159,7 +161,58 @@ pub fn ask_to_run(mut cmd: Command, ask: bool, text: &str) {
     }
 }
 
-fn build_sysroot(auto: bool, target: &str, rustc_version: &VersionMeta) -> PathBuf {
+/// Returns the sanitizer to use.
+/// Ok(true) => Use sanitizer "string"
+/// Ok(false) => Use no sanitizer
+///
+/// # Errors
+/// Err(err) => There was an error when trying to get the list of supported sanitizers
+pub fn sanitizer(target: &str, san: &str) -> Result<bool> {
+    // To get the list of supported sanitizers, we call `rustc --print target-spec-json`
+    // and parse the output.
+
+    let mut cmd = rustc();
+    cmd.args([
+        "-Z",
+        "unstable-options",
+        "--print",
+        "target-spec-json",
+        "--target",
+        target,
+    ]);
+    let output = cmd
+        .output()
+        .context("rustc --print target-spec-json` failed to run")?;
+
+    let output_str = String::from_utf8(output.stdout)
+        .context("`rustc --print target-spec-json` returned invalid UTF-8")?;
+
+    let json: serde_json::Value = serde_json::from_str(&output_str)
+        .context("`rustc --print target-spec-json` output is invalid JSON")?;
+
+    let map = json
+        .as_object()
+        .context("Target spec JSON has unexpected structure")?;
+
+    // The list of supported sanitizers is stored as an array
+    // in the "supported-sanitizers" key of the target JSON
+    match map.get("supported-sanitizers") {
+        Some(serde_json::Value::Array(arr)) => Ok(arr
+            .iter()
+            .any(|v| matches!(&v, &serde_json::Value::String(s) if s == san))),
+        Some(_) => {
+            bail!("Contents of \"supported-sanitizers\" key in target spec JSON are of unexpected type")
+        }
+        None => Ok(false),
+    }
+}
+
+fn build_sysroot(
+    auto: bool,
+    target: &str,
+    rustc_version: &VersionMeta,
+    sanitizer: Option<&str>,
+) -> PathBuf {
     // Determine where the rust sources are located.  The env var manually setting the source
     // trumps auto-detection.
     let rust_src = std::env::var_os("RUST_LIB_SRC");
@@ -189,14 +242,19 @@ fn build_sysroot(auto: bool, target: &str, rustc_version: &VersionMeta) -> PathB
 
     // Determine where to put the sysroot.
     let user_dirs = directories::ProjectDirs::from("de", "ralfj", "cargo-careful").unwrap();
-    let sysroot_dir = user_dirs.cache_dir();
+    let mut sysroot_dir: PathBuf = user_dirs.cache_dir().to_owned();
 
-    // Do the build.
-    eprint!("Preparing a careful sysroot (target: {target})... ");
+    if let Some(san) = sanitizer {
+        // Use a separate sysroot dir, to get separate caching of builds with and without sanitizer.
+        sysroot_dir.push(san);
+        eprint!("Preparing a careful sysroot (target: {target}, sanitizer: {san})... ")
+    } else {
+        eprint!("Preparing a careful sysroot (target: {target})... ")
+    }
     if !auto {
         eprintln!();
     }
-    SysrootBuilder::new(sysroot_dir, target)
+    let mut builder = SysrootBuilder::new(&sysroot_dir, target)
         .build_mode(BuildMode::Build)
         .rustc_version(rustc_version.clone())
         .cargo({
@@ -210,19 +268,27 @@ fn build_sysroot(auto: bool, target: &str, rustc_version: &VersionMeta) -> PathB
         .sysroot_config(SysrootConfig::WithStd {
             std_features: STD_FEATURES.iter().copied().map(Into::into).collect(),
         })
-        .rustflags(CAREFUL_FLAGS)
+        .rustflags(CAREFUL_FLAGS);
+
+    if let Some(san) = sanitizer {
+        builder = builder.rustflag(format!("-Zsanitizer={}", san));
+    }
+    builder
         .build_from_source(&rust_src)
         .expect("failed to build sysroot; run `cargo careful setup` to see what went wrong");
+
     if auto {
         eprintln!("done");
     } else {
         eprintln!("A sysroot is now available in `{}`.", sysroot_dir.display());
     }
 
-    PathBuf::from(sysroot_dir)
+    sysroot_dir
 }
 
-fn cargo_careful(mut args: env::Args) {
+fn cargo_careful(args: env::Args) {
+    let mut args = args.peekable();
+
     let rustc_version = rustc_version_info();
     let target = get_arg_flag_value("--target").unwrap_or_else(|| rustc_version.host.clone());
     let verbose = num_arg_flag("-v");
@@ -240,16 +306,27 @@ fn cargo_careful(mut args: env::Args) {
             ),
     };
 
+    let mut san_to_try = None;
+
     // Go through the args to figure out what is for cargo and what is for us.
     let mut cargo_args = Vec::new();
     for arg in args.by_ref() {
-        if let Some(_careful_arg) = arg.strip_prefix("-Zcareful-") {
-            // A flag for us! So far we don't support any, though.
-            show_error!("unsupported careful flag `{}`", arg);
+        if let Some(careful_arg) = arg.strip_prefix("-Zcareful-") {
+            let (key, value): (&str, Option<&str>) = match careful_arg.split_once('=') {
+                Some((key, value)) => (key, Some(value)),
+                None => (careful_arg, None),
+            };
+            match (key, value) {
+                ("sanitizer", Some(san)) => san_to_try = Some(san.to_owned()),
+                ("sanitizer", None) => san_to_try = Some(DEFAULT_SANITIZER.to_owned()),
+                _ => show_error!("unsupported careful flag `{}`", arg),
+            }
+            continue;
         } else if arg == "--" {
             // The rest is definitely not for us.
             break;
         }
+
         // Forward regular argument.
         cargo_args.push(arg);
     }
@@ -257,8 +334,33 @@ fn cargo_careful(mut args: env::Args) {
     cargo_args.push("--".into());
     cargo_args.extend(args);
 
+    let sanitizer = san_to_try.and_then(|san| {
+        sanitizer(&target, &san).map_or_else(
+            |e| {
+                eprintln!("{e}\nFailed to get list supported sanitizers! Falling back to none.");
+                None
+            },
+            |b| {
+                if b {
+                    eprintln!(
+                        "Using sanitizier `{san}`."
+                    );
+                    Some(san)
+                } else {
+                    eprintln!("Sanitizer `{san}` not supported by target, falling back to none.");
+                    None
+                }
+            },
+        )
+    });
+
     // Let's get ourselves as sysroot.
-    let sysroot = build_sysroot(/*auto*/ subcommand.is_some(), &target, &rustc_version);
+    let sysroot = build_sysroot(
+        /*auto*/ subcommand.is_some(),
+        &target,
+        &rustc_version,
+        sanitizer.as_deref(),
+    );
     let subcommand = match subcommand {
         Some(c) => c,
         None => {
@@ -272,6 +374,9 @@ fn cargo_careful(mut args: env::Args) {
     flags.push("--sysroot".into());
     flags.push(sysroot.into());
     flags.extend(CAREFUL_FLAGS.iter().map(Into::into));
+    if let Some(san) = sanitizer.as_deref() {
+        flags.push(format!("-Zsanitizer={}", san).into());
+    }
 
     let mut cmd = cargo();
     cmd.arg(subcommand);
@@ -285,6 +390,12 @@ fn cargo_careful(mut args: env::Args) {
         "CARGO_ENCODED_RUSTDOCFLAGS",
         rustc_build_sysroot::encode_rustflags(&flags),
     );
+
+    // Leaks are not a memory safety issue, don't detect them by default
+    if sanitizer.as_deref() == Some("address") && env::var_os("ASAN_OPTIONS").is_none() {
+        cmd.env("ASAN_OPTIONS", "detect_leaks=0");
+    }
+
     // Run it!
     exec(cmd, (verbose > 0).then_some("[cargo-careful] "));
 }
