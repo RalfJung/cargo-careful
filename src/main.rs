@@ -263,9 +263,12 @@ fn cargo_careful(mut args: env::Args) {
 
     // Let's get ourselves as sysroot.
     let sysroot = build_sysroot(/*auto*/ subcommand.is_some(), &target, &rustc_version);
-    let Some(subcommand) = subcommand else {
-        // We just did the setup.
-        return
+    let subcommand = match subcommand {
+        Some(c) => c,
+        None => {
+            // We just did the setup.
+            return;
+        }
     };
 
     // Invoke cargo for the real work.
