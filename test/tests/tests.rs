@@ -16,3 +16,9 @@ fn c_str() {
 }
 
 // We cannot test get_unchecked bounds checking since that will abort, not unwind.
+#[test]
+#[ignore]
+#[should_panic]
+fn get_unchecked() {
+    unsafe { [0].get_unchecked(1) };
+}
