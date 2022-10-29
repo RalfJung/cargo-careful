@@ -36,7 +36,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
+          toolchain: 1.64.0
           profile: minimal
           override: true
       - name: rustfmt
