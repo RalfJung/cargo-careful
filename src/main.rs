@@ -6,7 +6,7 @@ use std::ops::Not;
 use std::path::PathBuf;
 use std::process::{self, Command};
 
-use rustc_build_sysroot::{BuildMode, Sysroot, SysrootConfig};
+use rustc_build_sysroot::{BuildMode, SysrootBuilder, SysrootConfig};
 use rustc_version::VersionMeta;
 
 const CAREFUL_FLAGS: &[&str] = &[
@@ -195,27 +195,22 @@ fn build_sysroot(auto: bool, target: &str, rustc_version: &VersionMeta) -> PathB
     if !auto {
         eprintln!();
     }
-    Sysroot::new(sysroot_dir, target)
-        .build_from_source(
-            &rust_src,
-            BuildMode::Build,
-            SysrootConfig::WithStd {
-                std_features: STD_FEATURES,
-            },
-            rustc_version,
-            || {
-                let mut flags = Vec::new();
-                flags.extend(CAREFUL_FLAGS.iter().map(Into::into));
-
-                let mut cmd = cargo();
-                if auto {
-                    cmd.stdout(process::Stdio::null());
-                    cmd.stderr(process::Stdio::null());
-                }
-
-                (cmd, flags)
-            },
-        )
+    SysrootBuilder::new(sysroot_dir, target)
+        .build_mode(BuildMode::Build)
+        .rustc_version(rustc_version.clone())
+        .cargo({
+            let mut cmd = cargo();
+            if auto {
+                cmd.stdout(process::Stdio::null());
+                cmd.stderr(process::Stdio::null());
+            }
+            cmd
+        })
+        .sysroot_config(SysrootConfig::WithStd {
+            std_features: STD_FEATURES.iter().copied().map(Into::into).collect(),
+        })
+        .rustflags(CAREFUL_FLAGS)
+        .build_from_source(&rust_src)
         .expect("failed to build sysroot; run `cargo careful setup` to see what went wrong");
     if auto {
         eprintln!("done");
