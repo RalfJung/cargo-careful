@@ -10,9 +10,10 @@ use rustc_build_sysroot::{BuildMode, SysrootBuilder, SysrootConfig};
 use rustc_version::VersionMeta;
 
 const CAREFUL_FLAGS: &[&str] = &[
-    "-Zstrict-init-checks",
-    "-Zextra-const-ub-checks",
     "-Cdebug-assertions=on",
+    "-Zextra-const-ub-checks",
+    "-Zrandomize-layout",
+    "-Zstrict-init-checks",
 ];
 const STD_FEATURES: &[&str] = &["panic_unwind", "backtrace"];
 
