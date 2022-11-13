@@ -17,6 +17,8 @@ const CAREFUL_FLAGS: &[&str] = &[
     "-Zstrict-init-checks",
 ];
 const STD_FEATURES: &[&str] = &["panic_unwind", "backtrace"];
+
+/// The sanitizer to use when just `-Zcareful-sanitizer` is passed as flag.
 const DEFAULT_SANITIZER: &str = "address";
 
 pub fn show_error(msg: &impl std::fmt::Display) -> ! {
@@ -161,13 +163,11 @@ pub fn ask_to_run(mut cmd: Command, ask: bool, text: &str) {
     }
 }
 
-/// Returns the sanitizer to use.
-/// Ok(true) => Use sanitizer "string"
-/// Ok(false) => Use no sanitizer
+/// Returns whether the given sanitizer is supported on this target.
 ///
 /// # Errors
-/// Err(err) => There was an error when trying to get the list of supported sanitizers
-pub fn sanitizer(target: &str, san: &str) -> Result<bool> {
+/// Returns `Err` if there was an error when geutting the list of supported sanitizers.
+pub fn sanitizer_supported(san: &str, target: &str) -> Result<bool> {
     // To get the list of supported sanitizers, we call `rustc --print target-spec-json`
     // and parse the output.
 
@@ -335,20 +335,16 @@ fn cargo_careful(args: env::Args) {
     cargo_args.extend(args);
 
     let sanitizer = san_to_try.and_then(|san| {
-        sanitizer(&target, &san).map_or_else(
+        sanitizer_supported(&san, &target).map_or_else(
             |e| {
-                eprintln!("{e}\nFailed to get list supported sanitizers! Falling back to none.");
-                None
+                show_error!("failed to get list supported sanitizers: {e}");
             },
             |b| {
                 if b {
-                    eprintln!(
-                        "Using sanitizier `{san}`."
-                    );
+                    eprintln!("Using sanitizier `{san}`.");
                     Some(san)
                 } else {
-                    eprintln!("Sanitizer `{san}` not supported by target, falling back to none.");
-                    None
+                    show_error!("sanitizer `{san}` not supported by target `{target}`");
                 }
             },
         )
