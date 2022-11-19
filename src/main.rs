@@ -299,10 +299,10 @@ fn cargo_careful(args: env::Args) {
     // `None` means "just the setup, please".
     let subcommand = match &*subcommand {
         "setup" => None,
-        "test" | "t" | "run" | "r" | "nextest" => Some(subcommand),
+        "test" | "t" | "run" | "r" | "build" | "b" | "nextest" => Some(subcommand),
         _ =>
             show_error!(
-                "`cargo careful` supports the following subcommands: `run`, `test`, `nextest`, and `setup`."
+                "`cargo careful` supports the following subcommands: `run`, `test`, `build`, `nextest`, and `setup`."
             ),
     };
 
