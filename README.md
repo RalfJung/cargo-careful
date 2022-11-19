@@ -66,3 +66,9 @@ By default, when using `AddressSanitizer`, `cargo careful` will disable memory l
 setting `ASAN_OPTIONS=detect_leaks=0` in your program's environment, as memory leaks are not
 usually a soundness or correctness issue. If you set the `ASAN_OPTIONS` environment variable
 yourself (to any value, including an empty string), that will override this behavior.
+
+### `cfg` flag
+
+`cargo careful` sets the `careful` configuration flag, so you can use Rust's compile-time
+conditional mechanisms (`#[cfg(careful)]`, `#[cfg_attr(careful, ...)]`, `cfg!(careful)`) to check
+whether code is being run carefully.

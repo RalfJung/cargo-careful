@@ -22,3 +22,8 @@ fn c_str() {
 fn get_unchecked() {
     unsafe { [0].get_unchecked(1) };
 }
+
+#[test]
+fn cfg_flag() {
+    assert!(cfg!(careful));
+}

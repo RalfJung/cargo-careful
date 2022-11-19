@@ -15,6 +15,8 @@ const CAREFUL_FLAGS: &[&str] = &[
     "-Zextra-const-ub-checks",
     "-Zrandomize-layout",
     "-Zstrict-init-checks",
+    "--cfg",
+    "careful",
 ];
 const STD_FEATURES: &[&str] = &["panic_unwind", "backtrace"];
 
