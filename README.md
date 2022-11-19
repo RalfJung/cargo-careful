@@ -24,6 +24,8 @@ The first time you run `cargo careful`, it needs to run some setup steps, which 
 
 ## What does it do?
 
+### Assertions
+
 The most important thing `cargo careful` does is that it builds the standard library with debug
 assertions. The standard library already contains quite a few sanity checks that are enabled as
 debug assertions, but the usual rustup distrubtion compiles them all away to avoid run-time checks.
@@ -46,3 +48,21 @@ Here are some of the checks this enables:
 That said, there is a lot of Undefined Behavior that is *not* detected by `cargo careful`; check out
 [Miri](https://github.com/rust-lang/miri) if you want to be more exhaustively covered.
 The advantage of `cargo careful` over Miri is that it works on all code, supprts using arbitrary system and C FFI functions, and is much faster.
+
+### Sanitizing
+
+`cargo careful` can additionally build and run your program and standard library
+with a sanitizer. This feature is experimental and disabled by default, as
+the [underlying `rustc` feature](https://doc.rust-lang.org/nightly/unstable-book/compiler-flags/sanitizer.html)
+doesn't play well with proc macros.
+
+To use a sanitizer, pass the command-line flag `-Zcareful-sanitizer=<your_sanitizer>` to `cargo careful`.
+The list of supported sanitizers and targets can be found
+[here](https://doc.rust-lang.org/nightly/unstable-book/compiler-flags/sanitizer.html).
+If you pass `-Zcareful-sanitizer` without specifying a sanitizer, [`AddressSanitizer`](https://clang.llvm.org/docs/AddressSanitizer.html)
+will be used.
+
+By default, when using `AddressSanitizer`, `cargo careful` will disable memory leak checking by
+setting `ASAN_OPTIONS=detect_leaks=0` in your program's environment, as memory leaks are not
+usually a soundness or correctness issue. If you set the `ASAN_OPTIONS` environment variable
+yourself (to any value, including an empty string), that will override this behavior.
