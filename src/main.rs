@@ -166,7 +166,7 @@ pub fn ask_to_run(mut cmd: Command, ask: bool, text: &str) {
 /// Returns whether the given sanitizer is supported on this target.
 ///
 /// # Errors
-/// Returns `Err` if there was an error when geutting the list of supported sanitizers.
+/// Returns `Err` if there was an error when getting the list of supported sanitizers.
 pub fn sanitizer_supported(san: &str, target: &str) -> Result<bool> {
     // To get the list of supported sanitizers, we call `rustc --print target-spec-json`
     // and parse the output.
