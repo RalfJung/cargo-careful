@@ -2,7 +2,16 @@
 
 `cargo careful` is a tool to run your Rust code extra carefully -- opting into a bunch of
 nightly-only extra checks that help detect Undefined Behavior, and using a standard library with
-debug assertions.
+debug assertions. For example, it will find the error in the following snippet:
+
+```rust
+fn main() {
+    let arr = [1, 2, 3, 4];
+    let slice = &arr[..2];
+    let value = unsafe { slice.get_unchecked(2) };
+    println!("The value is {}!", value);
+}
+```
 
 To use `cargo careful`, first install it:
 
@@ -52,8 +61,8 @@ The advantage of `cargo careful` over Miri is that it works on all code, supprts
 `cargo careful` honors the `CARGO_ENCODED_RUSTFLAGS` and `RUSTFLAGS` environment variables as well
 as the `build.rustflags` cargo setting (in that order, the first one being set is used). It
 currently does *not* honor the `target.rustflags` settings as that would require re-implementing all
-the target `cfg` logic from cargo. The flags this way are applied to *both* the sysroot build and
-the program itself.
+the target `cfg` logic from cargo. The flags are applied to *both* the sysroot build and the program
+itself.
 
 ### Sanitizing
 
