@@ -17,7 +17,6 @@ use util::*;
 const CAREFUL_FLAGS: &[&str] = &[
     "-Cdebug-assertions=on",
     "-Zextra-const-ub-checks",
-    "-Zrandomize-layout",
     "-Zstrict-init-checks",
     "--cfg",
     "careful",

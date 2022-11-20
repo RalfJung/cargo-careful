@@ -42,8 +42,6 @@ Here are some of the checks this enables:
 - `mem::zeroed` and the deprecated `mem::uninitialized` panic if the type does not allow that kind
   of initialization (with a check that is stricter than the default). (This is `-Zstrict-init-checks`.)
 - Extra UB-checking is done during const-evaluation. (This is `-Zextra-const-ub-checks`.)
-- Layout of `repr(Rust)` types is randomized, to help detect code that makes incorrect layout assumptions.
-  (This is `-Zrandomize-layout`.)
 
 That said, there is a lot of Undefined Behavior that is *not* detected by `cargo careful`; check out
 [Miri](https://github.com/rust-lang/miri) if you want to be more exhaustively covered.
