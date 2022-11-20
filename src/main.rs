@@ -1,3 +1,5 @@
+#![allow(clippy::needless_borrow)]
+
 use std::env;
 use std::ffi::OsString;
 use std::path::PathBuf;
@@ -35,6 +37,66 @@ pub fn rustc() -> Command {
 
 pub fn rustc_version_info() -> VersionMeta {
     VersionMeta::for_command(rustc()).expect("failed to determine rustc version")
+}
+
+// Computes the extra flags that need to be passed to cargo to make it behave like the current
+// cargo invocation.
+fn cargo_extra_flags() -> Vec<String> {
+    let mut flags = Vec::new();
+    // `-Zunstable-options` is required by `--config`.
+    flags.push("-Zunstable-options".to_string());
+
+    // Forward `--config` flags.
+    let config_flag = "--config";
+    for arg in get_arg_flag_values(config_flag) {
+        flags.push(config_flag.to_string());
+        flags.push(arg);
+    }
+
+    // Forward `--manifest-path`.
+    let manifest_flag = "--manifest-path";
+    if let Some(manifest) = get_arg_flag_value(manifest_flag) {
+        flags.push(manifest_flag.to_string());
+        flags.push(manifest);
+    }
+
+    // Forwarding `--target-dir` would make sense, but `cargo metadata` does not support that flag.
+
+    flags
+}
+
+pub fn get_rustflags() -> Vec<String> {
+    // Highest precedence: the encoded env var.
+    if let Ok(rustflags) = env::var("CARGO_ENCODED_RUSTFLAGS") {
+        return if rustflags.is_empty() {
+            vec![]
+        } else {
+            rustflags.split('\x1f').map(Into::into).collect()
+        };
+    }
+
+    // Next: the old var.
+    if let Ok(a) = env::var("RUSTFLAGS") {
+        // This code is taken from `RUSTFLAGS` handling in cargo.
+        return a
+            .split(' ')
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(str::to_string)
+            .collect();
+    }
+
+    // As fallback, ask `cargo config`.
+    // FIXME: This does not take into account `target.rustflags`.
+    let mut cmd = cargo();
+    cmd.args(&["config", "build.rustflags", "--format=json-value"]);
+    cmd.args(cargo_extra_flags());
+    let output = cmd.output().expect("failed to run `cargo config`");
+    if !output.status.success() {
+        // This can fail if the variable is not set.
+        return vec![];
+    }
+    serde_json::from_slice(&output.stdout).unwrap()
 }
 
 /// Returns whether the given sanitizer is supported on this target.
@@ -85,6 +147,7 @@ fn build_sysroot(
     auto: bool,
     target: &str,
     rustc_version: &VersionMeta,
+    rustflags: &[String],
     sanitizer: Option<&str>,
 ) -> PathBuf {
     // Determine where the rust sources are located.  The env var manually setting the source
@@ -142,7 +205,8 @@ fn build_sysroot(
         .sysroot_config(SysrootConfig::WithStd {
             std_features: STD_FEATURES.iter().copied().map(Into::into).collect(),
         })
-        .rustflags(CAREFUL_FLAGS);
+        .rustflags(CAREFUL_FLAGS)
+        .rustflags(rustflags);
 
     if let Some(san) = sanitizer {
         builder = builder.rustflag(format!("-Zsanitizer={}", san));
@@ -181,6 +245,7 @@ fn cargo_careful(args: env::Args) {
     };
 
     let mut san_to_try = None;
+    let rustflags = get_rustflags();
 
     // Go through the args to figure out what is for cargo and what is for us.
     let mut cargo_args = Vec::new();
@@ -229,6 +294,7 @@ fn cargo_careful(args: env::Args) {
         /*auto*/ subcommand.is_some(),
         &target,
         &rustc_version,
+        &rustflags,
         sanitizer.as_deref(),
     );
     let subcommand = match subcommand {
@@ -240,7 +306,7 @@ fn cargo_careful(args: env::Args) {
     };
 
     // Invoke cargo for the real work.
-    let mut flags = Vec::new();
+    let mut flags: Vec<OsString> = rustflags.into_iter().map(Into::into).collect();
     flags.push("--sysroot".into());
     flags.push(sysroot.into());
     flags.extend(CAREFUL_FLAGS.iter().map(Into::into));

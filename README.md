@@ -49,6 +49,14 @@ That said, there is a lot of Undefined Behavior that is *not* detected by `cargo
 [Miri](https://github.com/rust-lang/miri) if you want to be more exhaustively covered.
 The advantage of `cargo careful` over Miri is that it works on all code, supprts using arbitrary system and C FFI functions, and is much faster.
 
+### RUSTFLAGS
+
+`cargo careful` honors the `CARGO_ENCODED_RUSTFLAGS` and `RUSTFLAGS` environment variables as well
+as the `build.rustflags` cargo setting (in that order, the first one being set is used). It
+currently does *not* honor the `target.rustflags` settings as that would require re-implementing all
+the target `cfg` logic from cargo. The flags this way are applied to *both* the sysroot build and
+the program itself.
+
 ### Sanitizing
 
 `cargo careful` can additionally build and run your program and standard library
