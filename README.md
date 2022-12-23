@@ -67,9 +67,13 @@ itself.
 ### Sanitizing
 
 `cargo careful` can additionally build and run your program and standard library
-with a sanitizer. This feature is experimental and disabled by default, as
-the [underlying `rustc` feature](https://doc.rust-lang.org/nightly/unstable-book/compiler-flags/sanitizer.html)
-doesn't play well with proc macros.
+with a sanitizer. This feature is experimental and disabled by default. 
+
+The [underlying `rustc` feature](https://doc.rust-lang.org/nightly/unstable-book/compiler-flags/sanitizer.html)
+doesn't play well with [procedural macros](https://doc.rust-lang.org/reference/procedural-macros.html).
+If you see error messages involving procedural macros during the build, they
+can sometimes be solved by specifying a target (which can be the same as the host),
+e.g., `--target=x86_64-unknown-linux-gnu`.
 
 To use a sanitizer, pass the command-line flag `-Zcareful-sanitizer=<your_sanitizer>` to `cargo careful`.
 The list of supported sanitizers and targets can be found
