@@ -54,7 +54,7 @@ Here are some of the checks this enables:
 
 That said, there is a lot of Undefined Behavior that is *not* detected by `cargo careful`; check out
 [Miri](https://github.com/rust-lang/miri) if you want to be more exhaustively covered.
-The advantage of `cargo careful` over Miri is that it works on all code, supprts using arbitrary system and C FFI functions, and is much faster.
+The advantage of `cargo careful` over Miri is that it works on all code, supports using arbitrary system and C FFI functions, and is much faster.
 
 ### RUSTFLAGS
 
