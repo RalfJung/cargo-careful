@@ -3,7 +3,9 @@
 use std::ffi::CString;
 use std::mem;
 
+// We cannot test `uninitialized` checking since that will abort, not unwind.
 #[test]
+#[ignore]
 #[should_panic]
 fn uninit_bool_array() {
     unsafe { mem::uninitialized::<[bool; 1]>() };
