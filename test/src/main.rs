@@ -2,7 +2,7 @@
 fn main() {
     eprintln!("expecting a panic...");
     std::panic::catch_unwind(|| unsafe {
-        unsafe { std::ffi::CString::from_vec_unchecked(vec![0]) };
+        let _ = std::ffi::CString::from_vec_unchecked(vec![0]);
     })
     .unwrap_err();
     eprintln!("... looking good!");
