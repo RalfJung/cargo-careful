@@ -113,10 +113,6 @@ jobs:
         with:
           toolchain: stable
 
-      - name: Create Cargo.lock
-        run: |
-          cargo update
-
       - name: Get version
         id: tagName
         run: |
