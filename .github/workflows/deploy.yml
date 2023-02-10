@@ -34,12 +34,8 @@ jobs:
       id: package
       shell: bash
       run: |
-        ARCHIVE_TARGET="x86_64-pc-windows-msvc"
-        ARCHIVE_NAME="cargo-careful-${{ steps.tagName.outputs.tag }}-$ARCHIVE_TARGET"
-        ARCHIVE_FILE="${ARCHIVE_NAME}.zip"
-        7z a ${ARCHIVE_FILE} ./target/release/cargo-careful.exe
-        echo "file=$ARCHIVE_FILE" >> $GITHUB_OUTPUT
-        echo "name=$ARCHIVE_NAME.zip" >> $GITHUB_OUTPUT
+        echo "file=./target/release/cargo-careful.exe" >> $GITHUB_OUTPUT
+        echo "name=cargo-careful.exe" >> $GITHUB_OUTPUT
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v2
@@ -93,11 +89,8 @@ jobs:
     - name: Build package
       id: package
       run: |
-        TAR_FILE=cargo-careful-${{ steps.tagName.outputs.tag }}-${{ matrix.target }}
-        cd target/${{ matrix.target }}/release
-        tar -czvf $GITHUB_WORKSPACE/$TAR_FILE.tar.gz cargo-careful
-        echo "name=$TAR_FILE" >> $GITHUB_OUTPUT
-        echo "file=$TAR_FILE.tar.gz" >> $GITHUB_OUTPUT
+        echo "file=./target/${{ matrix.target }}/release/cargo-careful" >> $GITHUB_OUTPUT
+        echo "name=cargo-careful-${{ matrix.target }}" >> $GITHUB_OUTPUT
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v2
@@ -140,7 +133,6 @@ jobs:
         with:
           name: v${{ steps.tagName.outputs.tag }}
           files: |
-            ./binaries/**/*.zip
-            ./binaries/**/*.tar.gz
+            ./binaries/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
