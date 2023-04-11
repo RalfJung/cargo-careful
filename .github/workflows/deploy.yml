@@ -28,6 +28,8 @@ jobs:
       id: tagName
       run: |
         VERSION=$(cargo pkgid | cut -d# -f2)
+        [[ "v$VERSION" == "${{ github.ref_name }}" ]] || \
+        echo "Tags v$VERSION and ${{ github.ref_name}} not equals" && exit 1
         echo "tag=$VERSION" >> $GITHUB_OUTPUT
 
     - name: Build package
@@ -82,6 +84,8 @@ jobs:
       id: tagName
       run: |
         VERSION=$(cargo pkgid | cut -d# -f2)
+        [[ "v$VERSION" == "${{ github.ref_name }}" ]] || \
+        echo "Tags v$VERSION and ${{ github.ref_name}} not equals" && exit 1
         echo "tag=$VERSION" >> $GITHUB_OUTPUT
 
     - name: Build package
