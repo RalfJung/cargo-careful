@@ -72,9 +72,7 @@ jobs:
 
     - name: Build cargo-careful
       run: |
-        # TODO: Remember to add RUSTFLAGS=+crt-static for musl target when
-        # static linkage will not be the default behaviour
-        cargo build --release --target ${{ matrix.target }}
+        RUSTFLAGS=+crt-static cargo build --release --target ${{ matrix.target }}
 
     - name: Strip binary
       run: |
