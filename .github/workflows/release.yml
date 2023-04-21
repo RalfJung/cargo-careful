@@ -1,4 +1,5 @@
-name: deploy
+# Generate binary releases when a tag is pushed
+name: release
 
 on:
   push:
@@ -22,15 +23,6 @@ jobs:
     - name: Build cargo-careful
       run: |
         cargo build --release
-
-    - name: Get the version
-      shell: bash
-      id: tagName
-      run: |
-        VERSION=$(cargo pkgid | cut -d# -f2)
-        [[ "v$VERSION" == "${{ github.ref_name }}" ]] || \
-        echo "Tags v$VERSION and ${{ github.ref_name}} not equals" && exit 1
-        echo "tag=$VERSION" >> $GITHUB_OUTPUT
 
     - name: Build package
       id: package
@@ -80,13 +72,11 @@ jobs:
       run: |
         strip target/${{ matrix.target }}/release/cargo-careful
 
-    - name: Get the version
-      id: tagName
+    - name: Sanity check version
       run: |
-        VERSION=$(cargo pkgid | cut -d# -f2)
-        [[ "v$VERSION" == "${{ github.ref_name }}" ]] || \
-        echo "Tags v$VERSION and ${{ github.ref_name}} not equals" && exit 1
-        echo "tag=$VERSION" >> $GITHUB_OUTPUT
+        VERSION=v$(cargo pkgid | cut -d# -f2)
+        [[ "$VERSION" == "${{ github.ref_name }}" ]] || \
+        echo "Cargo version $VERSION and tag ${{ github.ref_name}} differ" && exit 1
 
     - name: Build package
       id: package
