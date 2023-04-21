@@ -32,7 +32,7 @@ jobs:
         echo "name=cargo-careful.exe" >> $GITHUB_OUTPUT
 
     - name: Upload artifacts
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: ${{ steps.package.outputs.name }}
         path: ${{ steps.package.outputs.file }}
@@ -85,13 +85,13 @@ jobs:
         echo "name=cargo-careful-${{ matrix.target }}" >> $GITHUB_OUTPUT
 
     - name: Upload artifacts
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: ${{ steps.package.outputs.name }}
         path: ${{ steps.package.outputs.file }}
 
 
-  deploy:
+  release:
 
     needs: [create-windows-binaries, create-unix-binaries]
 
@@ -105,14 +105,8 @@ jobs:
         with:
           toolchain: stable
 
-      - name: Get version
-        id: tagName
-        run: |
-          VERSION=$(cargo pkgid | cut -d# -f2)
-          echo "tag=$VERSION" >> $GITHUB_OUTPUT
-
       - name: Download artifacts
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           path: ./binaries
 
