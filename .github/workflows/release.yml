@@ -76,7 +76,7 @@ jobs:
       run: |
         VERSION=v$(cargo pkgid | cut -d# -f2)
         [[ "$VERSION" == "${{ github.ref_name }}" ]] || \
-        echo "Cargo version $VERSION and tag ${{ github.ref_name}} differ" && exit 1
+        (echo "Cargo version $VERSION and tag ${{ github.ref_name}} differ" && exit 1)
 
     - name: Build package
       id: package
