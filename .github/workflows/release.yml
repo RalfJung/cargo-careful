@@ -4,7 +4,7 @@ name: release
 on:
   push:
     tags:
-      - 'v*.*.*'
+      - 'tag-test'
 
 jobs:
 
@@ -24,18 +24,11 @@ jobs:
       run: |
         cargo build --release
 
-    - name: Build package
-      id: package
-      shell: bash
-      run: |
-        echo "file=./target/release/cargo-careful.exe" >> $GITHUB_OUTPUT
-        echo "name=cargo-careful.exe" >> $GITHUB_OUTPUT
-
     - name: Upload artifacts
       uses: actions/upload-artifact@v3
       with:
-        name: ${{ steps.package.outputs.name }}
-        path: ${{ steps.package.outputs.file }}
+        name: cargo-careful.exe
+        path: target/release/cargo-careful.exe
 
   create-unix-binaries:
 
@@ -68,47 +61,45 @@ jobs:
       run: |
         RUSTFLAGS="-C target-feature=+crt-static" cargo build --release --target ${{ matrix.target }}
 
-    - name: Strip binary
+    - name: Strip and move binary
       run: |
         strip target/${{ matrix.target }}/release/cargo-careful
+        # Binary name needs to be unique across artifacts (for release upload)
+        mv target/${{ matrix.target }}/release/cargo-careful cargo-careful.${{ matrix.target }}
 
-    - name: Sanity check version
-      run: |
-        VERSION=v$(cargo pkgid | cut -d# -f2)
-        [[ "$VERSION" == "${{ github.ref_name }}" ]] || \
-        (echo "Cargo version $VERSION and tag ${{ github.ref_name}} differ" && exit 1)
-
-    - name: Build package
-      id: package
-      run: |
-        echo "file=./target/${{ matrix.target }}/release/cargo-careful" >> $GITHUB_OUTPUT
-        echo "name=cargo-careful-${{ matrix.target }}" >> $GITHUB_OUTPUT
+    #- name: Sanity check version
+    #  run: |
+    #    VERSION=v$(cargo pkgid | cut -d# -f2)
+    #    [[ "$VERSION" == "${{ github.ref_name }}" ]] || \
+    #    (echo "Cargo version $VERSION and tag ${{ github.ref_name}} differ" && exit 1)
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v3
       with:
-        name: ${{ steps.package.outputs.name }}
-        path: ${{ steps.package.outputs.file }}
+        name: cargo-careful-${{ matrix.target }}
+        path: cargo-careful.${{ matrix.target }}
 
 
   release:
-
     needs: [create-windows-binaries, create-unix-binaries]
 
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+    - uses: actions/checkout@v3
 
-      - name: Download artifacts
-        uses: actions/download-artifact@v3
-        with:
-          path: ./binaries
+    - name: Download artifacts
+      uses: actions/download-artifact@v3
+      with:
+        path: ./binaries
 
-      - name: Create a release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: |
-            ./binaries/*
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Create a release
+      uses: softprops/action-gh-release@v1
+      with:
+        # Artifacts are put in subfolders, hence the `*/*`
+        files: |
+          binaries/*/*
+        name: testrelease
+        fail_on_unmatched_files: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
