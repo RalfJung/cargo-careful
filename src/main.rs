@@ -208,7 +208,7 @@ fn build_sysroot(
         .rustflags(rustflags);
 
     if let Some(san) = sanitizer {
-        builder = builder.rustflag(format!("-Zsanitizer={}", san));
+        builder = builder.rustflag(format!("-Zsanitizer={san}"));
     }
     builder
         .build_from_source(&rust_src)
@@ -227,7 +227,12 @@ fn cargo_careful(args: env::Args) {
     let mut args = args.peekable();
 
     let rustc_version = rustc_version_info();
-    let target = get_arg_flag_value("--target").unwrap_or_else(|| rustc_version.host.clone());
+    let (target, explicit_target) = if let Some(target) = get_arg_flag_value("--target") {
+        (target, true)
+    } else {
+        (rustc_version.host.clone(), false)
+    };
+
     let verbose = num_arg_flag("-v");
 
     let subcommand = args.next().unwrap_or_else(|| {
@@ -310,12 +315,19 @@ fn cargo_careful(args: env::Args) {
     flags.push(sysroot.into());
     flags.extend(CAREFUL_FLAGS.iter().map(Into::into));
     if let Some(san) = sanitizer.as_deref() {
-        flags.push(format!("-Zsanitizer={}", san).into());
+        flags.push(format!("-Zsanitizer={san}").into());
     }
 
     let mut cmd = cargo();
     cmd.arg(subcommand);
+
+    // Avoids using sanitizers for build scripts and proc macros.
+    if !explicit_target && sanitizer.is_some() {
+        cmd.args(["--target", target.as_str()]);
+    }
+
     cmd.args(cargo_args);
+
     // Setup environment. Both rustc and rustdoc need these flags.
     cmd.env(
         "CARGO_ENCODED_RUSTFLAGS",
