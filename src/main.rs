@@ -180,6 +180,13 @@ fn build_sysroot(
     let user_dirs = directories::ProjectDirs::from("de", "ralfj", "cargo-careful").unwrap();
     let mut sysroot_dir: PathBuf = user_dirs.cache_dir().to_owned();
 
+    // From rust/src/bootstrap/config.rs
+    // https://github.com/rust-lang/rust/blob/25b5af1b3a0b9e2c0c57b223b2d0e3e203869b2c/src/bootstrap/config.rs#L549-L555
+    let no_std = target.contains("-none")
+        || target.contains("nvptx")
+        || target.contains("switch")
+        || target.contains("-uefi");
+
     if let Some(san) = sanitizer {
         // Use a separate sysroot dir, to get separate caching of builds with and without sanitizer.
         sysroot_dir.push(san);
@@ -201,8 +208,12 @@ fn build_sysroot(
             }
             cmd
         })
-        .sysroot_config(SysrootConfig::WithStd {
-            std_features: STD_FEATURES.iter().copied().map(Into::into).collect(),
+        .sysroot_config(if no_std {
+            SysrootConfig::NoStd
+        } else {
+            SysrootConfig::WithStd {
+                std_features: STD_FEATURES.iter().copied().map(Into::into).collect(),
+            }
         })
         .rustflags(CAREFUL_FLAGS)
         .rustflags(rustflags);
