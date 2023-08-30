@@ -17,6 +17,7 @@ jobs:
       matrix:
         rust:
           - nightly
+          - nightly-2023-07-01
           - nightly-2023-01-01
         os:
           - ubuntu-latest
@@ -30,7 +31,12 @@ jobs:
           toolchain: ${{ matrix.rust }}
       - name: Clear lockfiles (cron jobs only)
         if: github.event_name == 'schedule'
-        run: find . -name Cargo.lock -delete
+        # macOS `find` requires the `.`
+        run: |
+          for C in $(find . -name Cargo.lock); do
+            echo "$(dirname "$C")"
+            cargo update --manifest-path $(dirname "$C")/Cargo.toml
+          done
       - name: Run tests
         working-directory: test
         run: bash ci.sh
