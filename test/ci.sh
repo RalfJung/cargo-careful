@@ -14,7 +14,6 @@ cargo careful test --locked
 
 # test no-std
 pushd test-no_std
-rustup target add x86_64-unknown-none
 cargo careful setup --target x86_64-unknown-none
 cargo careful build --target x86_64-unknown-none --locked
 cargo clean
