@@ -22,7 +22,7 @@ jobs:
 
     - name: Build cargo-careful
       run: |
-        cargo build --release
+        cargo build --release --locked
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v3
@@ -59,7 +59,7 @@ jobs:
 
     - name: Build cargo-careful
       run: |
-        RUSTFLAGS="-C target-feature=+crt-static" cargo build --release --target ${{ matrix.target }}
+        RUSTFLAGS="-C target-feature=+crt-static" cargo build --release --locked --target ${{ matrix.target }}
 
     - name: Strip and move binary
       run: |
