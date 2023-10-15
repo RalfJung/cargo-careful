@@ -215,6 +215,7 @@ fn build_sysroot(
                 std_features: STD_FEATURES.iter().copied().map(Into::into).collect(),
             }
         })
+        // User-provided flags must come after CAREFUL_FLAGS so that they can be overridden.
         .rustflags(CAREFUL_FLAGS)
         .rustflags(rustflags);
 
@@ -321,10 +322,11 @@ fn cargo_careful(args: env::Args) {
     };
 
     // Invoke cargo for the real work.
-    let mut flags: Vec<OsString> = rustflags.into_iter().map(Into::into).collect();
+    let mut flags: Vec<OsString> = CAREFUL_FLAGS.iter().map(Into::into).collect();
+    // User-provided flags must come after CAREFUL_FLAGS so that they can be overridden.
+    flags.extend(rustflags.into_iter().map(Into::into));
     flags.push("--sysroot".into());
     flags.push(sysroot.into());
-    flags.extend(CAREFUL_FLAGS.iter().map(Into::into));
     if let Some(san) = sanitizer.as_deref() {
         flags.push(format!("-Zsanitizer={san}").into());
     }
