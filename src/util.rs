@@ -43,6 +43,7 @@ pub fn exec(mut cmd: Command, verbose: Option<&str>) -> ! {
     // If exec returns, process setup has failed. This is the same error condition as the expect in
     // the non-Unix case.
     #[cfg(unix)]
+    #[allow(clippy::unnecessary_literal_unwrap)]
     {
         use std::os::unix::process::CommandExt;
         let error = cmd.exec();

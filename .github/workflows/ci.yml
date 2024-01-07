@@ -21,9 +21,8 @@ jobs:
       matrix:
         rust:
           - nightly
-          - nightly-2024-01-01
-          - nightly-2023-07-01
-          - nightly-2023-01-01
+          # Check a ~3 months old nightly as "oldest supported version"
+          - nightly-2023-10-01
         os:
           - ubuntu-latest
           - macos-latest
@@ -53,7 +52,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: 1.64.0
+          toolchain: 1.75.0
           components: rustfmt, clippy
       - name: rustfmt
         run: cargo fmt --check
