@@ -88,7 +88,7 @@ pub fn get_rustflags() -> Vec<String> {
     // As fallback, ask `cargo config`.
     // FIXME: This does not take into account `target.rustflags`.
     let mut cmd = cargo();
-    cmd.args(&["config", "build.rustflags", "--format=json-value"]);
+    cmd.args(["config", "build.rustflags", "--format=json-value"]);
     cmd.args(cargo_extra_flags());
     let output = cmd.output().expect("failed to run `cargo config`");
     if !output.status.success() {
