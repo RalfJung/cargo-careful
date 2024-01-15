@@ -67,7 +67,7 @@ itself.
 ### Sanitizing
 
 `cargo careful` can additionally build and run your program and standard library
-with a sanitizer. This feature is experimental and disabled by default. 
+with a sanitizer. This feature is experimental and disabled by default.
 
 The [underlying `rustc` feature](https://doc.rust-lang.org/nightly/unstable-book/compiler-flags/sanitizer.html)
 doesn't play well with [procedural macros](https://doc.rust-lang.org/reference/procedural-macros.html).
@@ -85,6 +85,12 @@ By default, when using `AddressSanitizer`, `cargo careful` will disable memory l
 setting `ASAN_OPTIONS=detect_leaks=0` in your program's environment, as memory leaks are not
 usually a soundness or correctness issue. If you set the `ASAN_OPTIONS` environment variable
 yourself (to any value, including an empty string), that will override this behavior.
+
+### Main Thread Checker
+
+`cargo careful` automatically enables [Apple's Main Thread Checker](https://developer.apple.com/documentation/xcode/diagnosing-memory-thread-and-crash-issues-early#Detect-improper-UI-updates-on-background-threads) on macOS, iOS, tvOS and watchOS targets, whenever the user has Xcode installed.
+
+This helps diagnosing issues with executing thread-unsafe functionality off the main thread on those platforms.
 
 ### `cfg` flag
 

@@ -1,0 +1,8 @@
+[package]
+name = "test-cargo-careful-main_thread_checker"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.5.0"

@@ -3,9 +3,9 @@
 use std::env;
 use std::ffi::OsString;
 use std::path::PathBuf;
-use std::process::{self, Command};
+use std::process::{self, Command, Stdio};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use rustc_build_sysroot::{BuildMode, SysrootBuilder, SysrootConfig};
 use rustc_version::VersionMeta;
 
@@ -36,6 +36,48 @@ pub fn rustc() -> Command {
 
 pub fn rustc_version_info() -> VersionMeta {
     VersionMeta::for_command(rustc()).expect("failed to determine rustc version")
+}
+
+/// Find the path for Apple's Main Thread Checker on the current system.
+///
+/// This is intended to be used on macOS, but should work on other systems
+/// that have something similar to XCode set up.
+fn main_thread_checker_path() -> Result<Option<PathBuf>> {
+    // Find the Xcode developer directory, usually one of:
+    // - /Applications/Xcode.app/Contents/Developer
+    // - /Library/Developer/CommandLineTools
+    //
+    // This could be done by the `apple-sdk` crate, but we avoid the dependency here.
+    let output = Command::new("xcode-select")
+        .args(["--print-path"])
+        .stderr(Stdio::null())
+        .output()
+        .context("`xcode-select --print-path` failed to run")?;
+
+    if !output.status.success() {
+        return Err(anyhow!(
+            "got error when running `xcode-select --print-path`:\n{:?}",
+            output,
+        ));
+    }
+
+    let stdout = String::from_utf8(output.stdout)
+        .context("`xcode-select --print-path` returned invalid UTF-8")?;
+    let developer_dir = PathBuf::from(stdout.trim());
+
+    // Introduced in XCode 9.0, and has not changed location since.
+    // <https://developer.apple.com/library/archive/releasenotes/DeveloperTools/RN-Xcode/Chapters/Introduction.html#//apple_ref/doc/uid/TP40001051-CH1-SW974>
+    let path = developer_dir.join("usr/lib/libMainThreadChecker.dylib");
+    if path.try_exists()? {
+        Ok(Some(path))
+    } else {
+        eprintln!(
+            "warn: libMainThreadChecker.dylib could not be found at {}",
+            path.display()
+        );
+        eprintln!("      This usually means you're using the Xcode command line tools, which does not have this capability.");
+        Ok(None)
+    }
 }
 
 // Computes the extra flags that need to be passed to cargo to make it behave like the current
@@ -235,7 +277,7 @@ fn build_sysroot(
     sysroot_dir
 }
 
-fn cargo_careful(args: env::Args) {
+fn cargo_careful(args: env::Args) -> Result<()> {
     let mut args = args.peekable();
 
     let rustc_version = rustc_version_info();
@@ -285,6 +327,7 @@ fn cargo_careful(args: env::Args) {
         // Forward regular argument.
         cargo_args.push(arg);
     }
+
     // The rest is for cargo to forward to the binary / test runner.
     cargo_args.push("--".into());
     cargo_args.extend(args);
@@ -317,7 +360,7 @@ fn cargo_careful(args: env::Args) {
         Some(c) => c,
         None => {
             // We just did the setup.
-            return;
+            return Ok(());
         }
     };
 
@@ -339,6 +382,34 @@ fn cargo_careful(args: env::Args) {
         cmd.args(["--target", target.as_str()]);
     }
 
+    // Enable Main Thread Checker on macOS targets, as documented here:
+    // <https://developer.apple.com/documentation/xcode/diagnosing-memory-thread-and-crash-issues-early#Detect-improper-UI-updates-on-background-threads>
+    //
+    // On iOS, tvOS and watchOS simulators, the path is somewhere inside the
+    // simulator runtime, which is more difficult to find, so we don't do that
+    // yet (those target also probably wouldn't run in `cargo-careful` anyway).
+    //
+    // Note: The main thread checker by default removes itself from
+    // `DYLD_INSERT_LIBRARIES` upon load, see `MTC_RESET_INSERT_LIBRARIES`:
+    // <https://bryce.co/main-thread-checker-configuration/#mtc_reset_insert_libraries>
+    // This means that it is not inherited by child processes, so we have to
+    // tell Cargo to set this environment variable for the processes it
+    // launches (instead of just setting it for Cargo itself using `cmd.env`).
+    //
+    // Note: We do this even if the host is not running macOS, even though the
+    // environment variable will also be passed to any rustc processes that
+    // Cargo spawns (as Cargo doesn't currently have a good way of only
+    // specifying environment variables to only the binary being run).
+    // This is probably fine though, the environment variable is
+    // Apple-specific and will likely be ignored on other hosts.
+    if target.contains("-darwin") {
+        if let Some(path) = main_thread_checker_path()? {
+            cmd.arg("--config");
+            // TODO: Quote the path correctly according to toml rules
+            cmd.arg(format!("env.DYLD_INSERT_LIBRARIES={path:?}"));
+        }
+    }
+
     cmd.args(cargo_args);
 
     // Setup environment. Both rustc and rustdoc need these flags.
@@ -357,10 +428,10 @@ fn cargo_careful(args: env::Args) {
     }
 
     // Run it!
-    exec(cmd, (verbose > 0).then_some("[cargo-careful] "));
+    exec(cmd, (verbose > 0).then_some("[cargo-careful] "))
 }
 
-fn main() {
+fn main() -> Result<()> {
     let mut args = env::args();
     // Skip binary name.
     args.next().unwrap();
@@ -373,7 +444,7 @@ fn main() {
     match first.as_str() {
         "careful" => {
             // It's us!
-            cargo_careful(args);
+            cargo_careful(args)
         }
         _ => {
             show_error!(
