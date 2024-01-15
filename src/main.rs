@@ -387,7 +387,7 @@ fn cargo_careful(args: env::Args) -> Result<()> {
     //
     // On iOS, tvOS and watchOS simulators, the path is somewhere inside the
     // simulator runtime, which is more difficult to find, so we don't do that
-    // yet (those target also probably wouldn't run in `cargo-careful`, so ).
+    // yet (those target also probably wouldn't run in `cargo-careful` anyway).
     //
     // Note: The main thread checker by default removes itself from
     // `DYLD_INSERT_LIBRARIES` upon load, see `MTC_RESET_INSERT_LIBRARIES`:
@@ -401,7 +401,7 @@ fn cargo_careful(args: env::Args) -> Result<()> {
     // Cargo spawns (as Cargo doesn't currently have a good way of only
     // specifying environment variables to only the binary being run).
     // This is probably fine though, the environment variable is
-    // Apple-specific and likely just be ignored on other hosts.
+    // Apple-specific and will likely be ignored on other hosts.
     if target.contains("-darwin") {
         if let Some(path) = main_thread_checker_path()? {
             cmd.arg("--config");
