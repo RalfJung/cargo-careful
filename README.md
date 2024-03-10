@@ -25,9 +25,11 @@ and then run the following in your project:
 cargo +nightly careful test
 ```
 
-Running `cargo careful` requires a recent nightly toolchain (the last 3 months of nightly versions
-are supported). You can also `cargo +nightly careful run` to execute a binary crate. All `cargo
-test` and `cargo run` flags are supported.
+You can also `cargo +nightly careful run` to execute a binary crate. All `cargo test` and `cargo
+run` flags are supported.
+
+Running `cargo careful` requires a recent nightly toolchain. Nightly versions from the last 3 months
+are supported.
 
 The first time you run `cargo careful`, it needs to run some setup steps, which requires the
 `rustc-src` rustup component -- the tool will offer to install it for you if needed.
