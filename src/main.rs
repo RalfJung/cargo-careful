@@ -1,5 +1,3 @@
-#![allow(clippy::needless_borrow)]
-
 use std::env;
 use std::ffi::OsString;
 use std::path::PathBuf;
