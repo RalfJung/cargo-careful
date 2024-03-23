@@ -40,7 +40,7 @@ The first time you run `cargo careful`, it needs to run some setup steps, which 
 
 The most important thing `cargo careful` does is that it builds the standard library with debug
 assertions. The standard library already contains quite a few sanity checks that are enabled as
-debug assertions, but the usual rustup distrubtion compiles them all away to avoid run-time checks.
+debug assertions, but the usual rustup distribution compiles them all away to avoid run-time checks.
 Furthermore, `cargo careful` sets some flags that tell rustc to insert extra run-time checks.
 
 Here are some of the checks this enables:
