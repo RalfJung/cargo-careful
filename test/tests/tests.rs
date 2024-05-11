@@ -1,4 +1,4 @@
-#![allow(deprecated, invalid_value)]
+#![allow(deprecated, invalid_value, unexpected_cfgs)]
 
 use std::ffi::CString;
 use std::mem;
