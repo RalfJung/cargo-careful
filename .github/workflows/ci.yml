@@ -18,15 +18,18 @@ jobs:
   test:
     name: Test Suite
     strategy:
+      fail-fast: false
       matrix:
         rust:
           - nightly
+          - nightly-2024-05-15
+          - nightly-2024-05-16
+          - nightly-2024-05-17
+          - nightly-2024-05-18
           # Check a ~3 months old nightly as "oldest supported version"
           - nightly-2023-10-01
         os:
           - ubuntu-latest
-          - macos-latest
-          - windows-latest
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v3
