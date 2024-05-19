@@ -2,14 +2,19 @@
 
 `cargo careful` is a tool to run your Rust code extra carefully -- opting into a bunch of
 nightly-only extra checks that help detect Undefined Behavior, and using a standard library with
-debug assertions. For example, it will find the error in the following snippet:
+debug assertions.
+The standard library does check for some Undefined Behavior when the program is built
+with debug assertions, but some of these checks are disabled because their performance
+impact was considered too high.
+For example, it will find the alignment issue in the following snippet:
 
 ```rust
 fn main() {
-    let arr = [1, 2, 3, 4];
-    let slice = &arr[..2];
-    let value = unsafe { slice.get_unchecked(2) };
-    println!("The value is {}!", value);
+    let arr = [1u8, 2, 3, 4];
+    for n in [0, 1] {
+        let val = unsafe { arr.as_ptr().add(n).cast::<u16>().read() };
+        println!("The value is {val}!");
+    }
 }
 ```
 
@@ -36,20 +41,18 @@ The first time you run `cargo careful`, it needs to run some setup steps, which 
 
 ## What does it do?
 
-### Assertions
+### Detect Undefined Behavior
 
 The most important thing `cargo careful` does is that it builds the standard library with debug
-assertions. The standard library already contains quite a few sanity checks that are enabled as
-debug assertions, but the usual rustup distribution compiles them all away to avoid run-time checks.
+assertions.
+The standard library does check for some Undefined Behavior when the program is built
+with debug assertions, but some of these checks are disabled because their performance
+impact was considered too high.
 Furthermore, `cargo careful` sets some flags that tell rustc to insert extra run-time checks.
 
 Here are some of the checks this enables:
 
-- `get_unchecked` in slices performs bounds checks.
-- `copy`, `copy_nonoverlapping`, and `write_bytes` check that pointers are aligned and non-null and
-  (if applicable) non-overlapping.
-- `{NonNull,NonZero*,...}::new_unchecked` check that the value is valid.
-- `unreachable_unchecked` checks that it actually is not being reached.
+- `ptr.read()`/`ptr.write(v)` check that the pointer is aligned and non-null.
 - The collection types perform plenty of internal consistency checks.
 - `mem::zeroed` and the deprecated `mem::uninitialized` panic if the type does not allow that kind
   of initialization (with a check that is stricter than the default). (This is `-Zstrict-init-checks`.)
