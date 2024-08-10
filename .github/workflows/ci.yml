@@ -22,7 +22,7 @@ jobs:
         rust:
           - nightly
           # Check a ~3 months old nightly as "oldest supported version"
-          - nightly-2023-10-01
+          - nightly-2024-05-01
         os:
           - ubuntu-latest
           - macos-latest
