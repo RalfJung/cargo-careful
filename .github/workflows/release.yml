@@ -23,12 +23,13 @@ jobs:
     - name: Build cargo-careful
       run: |
         cargo build --release --locked
+        mv target/release/cargo-careful.exe cargo-careful-windows.exe
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: cargo-careful.exe
-        path: target/release/cargo-careful-windows.exe
+        name: windows
+        path: cargo-careful-windows.exe
 
   create-unix-binaries:
 
@@ -65,7 +66,7 @@ jobs:
       run: |
         strip target/${{ matrix.target }}/release/cargo-careful
         # Binary name needs to be unique across artifacts (for release upload)
-        mv target/${{ matrix.target }}/release/cargo-careful cargo-careful.${{ matrix.target }}
+        mv target/${{ matrix.target }}/release/cargo-careful cargo-careful-${{ matrix.target }}
 
     - name: Sanity check version
       run: |
@@ -76,7 +77,7 @@ jobs:
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: cargo-careful-${{ matrix.target }}
+        name: ${{ matrix.target }}
         path: cargo-careful-${{ matrix.target }}
 
 
