@@ -25,10 +25,10 @@ jobs:
         cargo build --release --locked
 
     - name: Upload artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: cargo-careful.exe
-        path: target/release/cargo-careful.exe
+        path: target/release/cargo-careful-windows.exe
 
   create-unix-binaries:
 
@@ -74,10 +74,10 @@ jobs:
         (echo "Cargo version $VERSION and tag ${{ github.ref_name}} differ" && exit 1)
 
     - name: Upload artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: cargo-careful-${{ matrix.target }}
-        path: cargo-careful.${{ matrix.target }}
+        path: cargo-careful-${{ matrix.target }}
 
 
   release:
@@ -89,7 +89,7 @@ jobs:
     - uses: actions/checkout@v3
 
     - name: Download artifacts
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         path: ./binaries
 
