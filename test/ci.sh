@@ -1,5 +1,6 @@
 #!/bin/bash
 set -e
+set -x # so one can see where we are in the script
 
 # setup
 export RUSTFLAGS="-D warnings"
