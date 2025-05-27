@@ -243,7 +243,7 @@ fn build_sysroot(
         .rustc_version(rustc_version.clone())
         .cargo({
             let mut cmd = cargo();
-            if auto || verbose > 0 {
+            if auto && verbose == 0 {
                 cmd.stdout(process::Stdio::null());
                 cmd.stderr(process::Stdio::null());
             }
