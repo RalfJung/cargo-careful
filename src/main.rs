@@ -293,7 +293,13 @@ fn cargo_careful(args: env::Args) -> Result<()> {
     // `None` means "just the setup, please".
     let subcommand = match &*subcommand {
         "setup" => None,
-        "test" | "t" | "run" | "r" | "build" | "b" | "nextest" => Some(subcommand),
+        "test" | "t" | "run" | "r" | "build" | "b" => Some(vec![subcommand]),
+        "nextest" => {
+            // In nextest we have to also forward the main `verb` before things like `--target`.
+            let subsubcommand = args.next()
+                .unwrap_or_else(|| show_error!("`cargo careful nextest` expects a verb (e.g. `run`)"));
+            Some(vec![subcommand, subsubcommand])
+        }
         _ =>
             show_error!(
                 "`cargo careful` supports the following subcommands: `run`, `test`, `build`, `nextest`, and `setup`."
@@ -362,7 +368,7 @@ fn cargo_careful(args: env::Args) -> Result<()> {
         }
     };
     // we need to do some compat work, as nextest does not support `--config`
-    let is_nextest = subcommand == "nextest";
+    let is_nextest = subcommand[0] == "nextest";
 
     // Invoke cargo for the real work.
     let mut flags: Vec<OsString> = CAREFUL_FLAGS.iter().map(Into::into).collect();
@@ -375,7 +381,7 @@ fn cargo_careful(args: env::Args) -> Result<()> {
     }
 
     let mut cmd = cargo();
-    cmd.arg(subcommand);
+    cmd.args(subcommand);
 
     // Avoids using sanitizers for build scripts and proc macros.
     if !explicit_target && sanitizer.is_some() {
