@@ -20,9 +20,14 @@ cargo careful build --target x86_64-unknown-none --locked
 cargo clean
 popd
 
+# test with sanitizer -- this only works on Linux; macOS and Windows fail with a linker error
+if uname -s | grep -q "Linux"; then
+    cargo careful run -Zcareful-sanitizer --locked
+    cargo careful test -Zcareful-sanitizer --locked
+fi
+
 # test Apple's Main Thread Checker
-if uname -s | grep -q "Darwin"
-then
+if uname -s | grep -q "Darwin"; then
     pushd test-main_thread_checker
     # Run as normal; this will output warnings, but not fail
     cargo careful run --locked
