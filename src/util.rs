@@ -1,6 +1,5 @@
 //! Very general-purpose utilities
 use std::env;
-use std::fmt::Write as _;
 use std::io::{self, Write};
 use std::ops::Not;
 use std::process::{self, Command};
@@ -20,18 +19,7 @@ macro_rules! show_error {
 /// If `verbose` is `Some(prefix)`, print the prefix followed by the command to invoke.
 pub fn exec(mut cmd: Command, verbose: Option<&str>) -> ! {
     if let Some(prefix) = verbose {
-        let mut out = String::from(prefix);
-        for (var, val) in cmd.get_envs() {
-            if let Some(val) = val {
-                write!(out, "{}={:?} ", var.to_string_lossy(), val).unwrap();
-            } else {
-                // Existing env vars are always in quotes, so `<deleted>` cannot be confused with an
-                // env var set to the value `"<deleted>"`.
-                write!(out, "{}=<deleted> ", var.to_string_lossy()).unwrap();
-            }
-        }
-        write!(out, "{cmd:?}").unwrap();
-        eprintln!("{out}");
+        eprintln!("{prefix}{cmd:?}");
     }
     // On non-Unix imitate POSIX exec as closely as we can
     #[cfg(not(unix))]
