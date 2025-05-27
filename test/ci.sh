@@ -7,16 +7,16 @@ export RUSTFLAGS="-D warnings"
 cargo install --locked --path ..
 
 # test
-cargo careful setup
-cargo careful build --locked
+cargo careful setup -v
+cargo careful build --locked -v
 cargo clean
 cargo careful run --locked
 cargo careful test --locked
 
 # test no-std
 pushd test-no_std
-cargo careful setup --target x86_64-unknown-none -v
-cargo careful build --target x86_64-unknown-none -v --locked
+cargo careful setup --target x86_64-unknown-none
+cargo careful build --target x86_64-unknown-none --locked
 cargo clean
 popd
 
