@@ -188,6 +188,7 @@ fn build_sysroot(
     rustc_version: &VersionMeta,
     rustflags: &[String],
     sanitizer: Option<&str>,
+    verbose: usize,
 ) -> PathBuf {
     // Determine where the rust sources are located.  The env var manually setting the source
     // trumps auto-detection.
@@ -242,7 +243,7 @@ fn build_sysroot(
         .rustc_version(rustc_version.clone())
         .cargo({
             let mut cmd = cargo();
-            if auto {
+            if auto || verbose > 0 {
                 cmd.stdout(process::Stdio::null());
                 cmd.stderr(process::Stdio::null());
             }
@@ -359,6 +360,7 @@ fn cargo_careful(args: env::Args) -> Result<()> {
         &rustc_version,
         &rustflags,
         sanitizer.as_deref(),
+        verbose,
     );
     let subcommand = match subcommand {
         Some(c) => c,
