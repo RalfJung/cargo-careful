@@ -269,7 +269,7 @@ fn build_sysroot(
         .build_from_source(&rust_src)
         .expect("failed to build sysroot; run `cargo careful setup` to see what went wrong");
 
-    if auto {
+    if !show_output {
         eprintln!("done");
     } else {
         eprintln!("A sysroot is now available in `{}`.", sysroot_dir.display());
