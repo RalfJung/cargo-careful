@@ -235,7 +235,9 @@ fn build_sysroot(
     } else {
         eprint!("Preparing a careful sysroot (target: {target})... ")
     }
-    if !auto {
+    // By default, the output gets captured. But sometimes we want to show it to the user.
+    let show_output = verbose > 0 || !auto;
+    if show_output {
         eprintln!();
     }
     let mut builder = SysrootBuilder::new(&sysroot_dir, target)
@@ -243,9 +245,9 @@ fn build_sysroot(
         .rustc_version(rustc_version.clone())
         .cargo({
             let mut cmd = cargo();
-            if auto && verbose == 0 {
-                cmd.stdout(process::Stdio::null());
-                cmd.stderr(process::Stdio::null());
+            if show_output {
+                cmd.stdout(process::Stdio::inherit());
+                cmd.stderr(process::Stdio::inherit());
             }
             cmd
         })
