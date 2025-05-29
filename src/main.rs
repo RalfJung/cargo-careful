@@ -371,8 +371,6 @@ fn cargo_careful(args: env::Args) -> Result<()> {
             return Ok(());
         }
     };
-    // we need to do some compat work, as nextest does not support `--config`
-    let is_nextest = subcommand[0] == "nextest";
 
     // Invoke cargo for the real work.
     let mut flags: Vec<OsString> = CAREFUL_FLAGS.iter().map(Into::into).collect();
@@ -414,15 +412,9 @@ fn cargo_careful(args: env::Args) -> Result<()> {
     // Apple-specific and will likely be ignored on other hosts.
     if target.contains("-darwin") {
         if let Some(path) = main_thread_checker_path()? {
-            if is_nextest {
-                // Nextest does not support `--config` yet, so we have to set the env var
-                // directly.
-                cmd.env("DYLD_INSERT_LIBRARIES", path);
-            } else {
-                cmd.arg("--config");
-                // TODO: Quote the path correctly according to toml rules
-                cmd.arg(format!("env.DYLD_INSERT_LIBRARIES={path:?}"));
-            }
+            cmd.arg("--config");
+            // TODO: Quote the path correctly according to toml rules
+            cmd.arg(format!("env.DYLD_INSERT_LIBRARIES={path:?}"));
         }
     }
 
