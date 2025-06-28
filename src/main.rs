@@ -19,7 +19,7 @@ const CAREFUL_FLAGS: &[&str] = &[
     "--cfg",
     "careful",
 ];
-const STD_FEATURES: &[&str] = &["panic_unwind", "backtrace"];
+const STD_FEATURES: &[&str] = &["panic-unwind", "backtrace"];
 
 /// The sanitizer to use when just `-Zcareful-sanitizer` is passed as flag.
 const DEFAULT_SANITIZER: &str = "address";
