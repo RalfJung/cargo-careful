@@ -41,3 +41,8 @@ if uname -s | grep -q "Darwin"; then
     cargo clean
     popd
 fi
+
+# Debugging
+git clone https://github.com/mozilla/neqo --depth 1
+cd neqo
+cargo careful test --target "$(rustc --version --verbose | grep host: | cut -d' ' -f2)"
