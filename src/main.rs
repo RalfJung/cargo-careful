@@ -78,6 +78,34 @@ fn main_thread_checker_path() -> Result<Option<PathBuf>> {
     }
 }
 
+/// Get the specific path from the output of an external program.
+///
+/// E.g. `rustc --print sysroot` or `realpath $file`.
+fn get_external_path(mut cmd: Command, args: &[&str]) -> Result<PathBuf> {
+    let shell_command = format!(
+        "`{cmd} {args}`",
+        cmd = cmd.get_program().display(),
+        args = args.join(" ")
+    );
+    let output = cmd
+        .args(args)
+        .stderr(Stdio::null())
+        .output()
+        .with_context(|| format!("{shell_command} failed to run"))?;
+    if !output.status.success() {
+        anyhow::bail!("got error when running {shell_command}");
+    }
+
+    let path: PathBuf = String::from_utf8(output.stdout)
+        .with_context(|| format!("{shell_command} returned invalid UTF-8"))?
+        .trim()
+        .into();
+    if !path.try_exists()? {
+        anyhow::bail!("{} does not exist", path.display());
+    }
+    Ok(path)
+}
+
 // Computes the extra flags that need to be passed to cargo to make it behave like the current
 // cargo invocation.
 fn cargo_extra_flags() -> Vec<String> {
@@ -268,6 +296,32 @@ fn build_sysroot(
     builder
         .build_from_source(&rust_src)
         .expect("failed to build sysroot; run `cargo careful setup` to see what went wrong");
+
+    if sanitizer.is_some() && target.contains("-darwin") {
+        // build_sysroot doesn't copy the `librustc-nightly_rt.asan.dylib` for some reason
+        // so, let's do it ourselves
+        let asan_rt = get_external_path(rustc(), &["+nightly", "--print", "target-libdir"])
+            .context("Failed to get target-libdir")
+            .unwrap()
+            .join("librustc-nightly_rt.asan.dylib");
+
+        // aka `SysrootBuilder::sysroot_target_dir` but that's private
+        let target_dir = sysroot_dir.join("lib").join("rustlib").join(target);
+        let target_libdir = target_dir.join("lib");
+
+        std::fs::copy(
+            &asan_rt,
+            target_libdir.join("librustc-nightly_rt.asan.dylib"),
+        )
+        .with_context(|| {
+            format!(
+                "failed to copy {src} to {dst}",
+                src = asan_rt.display(),
+                dst = target_libdir.display(),
+            )
+        })
+        .expect("failed to copy asan_rt");
+    }
 
     if !show_output {
         eprintln!("done");
