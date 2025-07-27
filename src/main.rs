@@ -84,7 +84,7 @@ fn main_thread_checker_path() -> Result<Option<PathBuf>> {
 fn get_external_path(mut cmd: Command, args: &[&str]) -> Result<PathBuf> {
     let shell_command = format!(
         "`{cmd} {args}`",
-        cmd = cmd.get_program().display(),
+        cmd = cmd.get_program().to_string_lossy(),
         args = args.join(" ")
     );
     let output = cmd
