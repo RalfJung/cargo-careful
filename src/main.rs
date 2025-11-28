@@ -296,7 +296,7 @@ fn cargo_careful(args: env::Args) -> Result<()> {
     // `None` means "just the setup, please".
     let subcommand = match &*subcommand {
         "setup" => None,
-        "test" | "t" | "run" | "r" | "build" | "b" => Some(vec![subcommand]),
+        "test" | "t" | "run" | "r" | "build" | "b" | "rustc" => Some(vec![subcommand]),
         "nextest" => {
             // In nextest we have to also forward the main `verb` before things like `--target`.
             let subsubcommand = args.next()
@@ -305,7 +305,7 @@ fn cargo_careful(args: env::Args) -> Result<()> {
         }
         _ =>
             show_error!(
-                "`cargo careful` supports the following subcommands: `run`, `test`, `build`, `nextest`, and `setup`."
+                "`cargo careful` supports the following subcommands: `run`, `test`, `build`, `rustc`, `nextest`, and `setup`."
             ),
     };
 
