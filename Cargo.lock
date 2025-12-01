@@ -16,7 +16,7 @@ checksum = "812e12b5285cc515a9c72a5c1d3b6d46a19dac5acfef5265968c166106e31dd3"
 
 [[package]]
 name = "cargo-careful"
-version = "0.4.8"
+version = "0.4.9"
 dependencies = [
  "anyhow",
  "directories",
