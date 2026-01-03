@@ -35,7 +35,7 @@ jobs:
         with:
           toolchain: ${{ matrix.rust }}
       - name: Clear lockfiles (cron jobs only)
-        if: github.event_name == 'schedule'
+        if: github.event_name == 'schedule' && matrix.rust == 'nightly'
         # macOS `find` requires the `.`
         run: |
           for C in $(find . -name Cargo.lock); do
