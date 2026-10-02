@@ -5,17 +5,21 @@ set -x # so one can see where we are in the script
 # setup
 export RUSTFLAGS="-D warnings"
 cargo install --locked --path ..
+cargo careful setup -v
 
 # test
-cargo careful setup -v
 cargo careful build --locked -v
 cargo clean
 cargo careful run --locked
 cargo careful test --locked
 
-# test no-std
+# test proc_macro
+pushd test-proc_macro
+cargo careful test --locked
+popd
+
+# test no_std
 pushd test-no_std
-cargo careful setup --target x86_64-unknown-none
 cargo careful build --target x86_64-unknown-none --locked
 cargo clean
 popd
