@@ -19,10 +19,22 @@ name = "cargo-careful"
 version = "0.4.10"
 dependencies = [
  "anyhow",
+ "cargo-config2",
  "directories",
  "rustc-build-sysroot",
  "rustc_version",
  "serde_json",
+]
+
+[[package]]
+name = "cargo-config2"
+version = "0.1.45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "855d1b74d8faf6c56e02ddbb8a60f6eae479bba5ee6ee29cddee73fe9484f261"
+dependencies = [
+ "serde",
+ "serde_derive",
+ "toml",
 ]
 
 [[package]]

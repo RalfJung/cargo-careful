@@ -78,64 +78,14 @@ fn main_thread_checker_path() -> Result<Option<PathBuf>> {
     }
 }
 
-// Computes the extra flags that need to be passed to cargo to make it behave like the current
-// cargo invocation.
-fn cargo_extra_flags() -> Vec<String> {
-    let mut flags = Vec::new();
-    // `-Zunstable-options` is required by `--config`.
-    flags.push("-Zunstable-options".to_string());
-
-    // Forward `--config` flags.
-    let config_flag = "--config";
-    for arg in get_arg_flag_values(config_flag) {
-        flags.push(config_flag.to_string());
-        flags.push(arg);
+pub fn get_rustflags(target: &str) -> Vec<String> {
+    let config = cargo_config2::Config::load().unwrap();
+    let rustflags = config.rustflags(target).unwrap();
+    if let Some(rustflags) = rustflags {
+        return rustflags.flags;
     }
 
-    // Forward `--manifest-path`.
-    let manifest_flag = "--manifest-path";
-    if let Some(manifest) = get_arg_flag_value(manifest_flag) {
-        flags.push(manifest_flag.to_string());
-        flags.push(manifest);
-    }
-
-    // Forwarding `--target-dir` would make sense, but `cargo metadata` does not support that flag.
-
-    flags
-}
-
-pub fn get_rustflags() -> Vec<String> {
-    // Highest precedence: the encoded env var.
-    if let Ok(rustflags) = env::var("CARGO_ENCODED_RUSTFLAGS") {
-        return if rustflags.is_empty() {
-            vec![]
-        } else {
-            rustflags.split('\x1f').map(Into::into).collect()
-        };
-    }
-
-    // Next: the old var.
-    if let Ok(a) = env::var("RUSTFLAGS") {
-        // This code is taken from `RUSTFLAGS` handling in cargo.
-        return a
-            .split(' ')
-            .map(str::trim)
-            .filter(|s| !s.is_empty())
-            .map(str::to_string)
-            .collect();
-    }
-
-    // As fallback, ask `cargo config`.
-    // FIXME: This does not take into account `target.rustflags`.
-    let mut cmd = cargo();
-    cmd.args(["config", "build.rustflags", "--format=json-value"]);
-    cmd.args(cargo_extra_flags());
-    let output = cmd.output().expect("failed to run `cargo config`");
-    if !output.status.success() {
-        // This can fail if the variable is not set.
-        return vec![];
-    }
-    serde_json::from_slice(&output.stdout).unwrap()
+    vec![]
 }
 
 /// Returns whether the given sanitizer is supported on this target.
@@ -310,7 +260,7 @@ fn cargo_careful(args: env::Args) -> Result<()> {
     };
 
     let mut san_to_try = None;
-    let rustflags = get_rustflags();
+    let rustflags = get_rustflags(&target);
 
     // Go through the args to figure out what is for cargo and what is for us.
     let mut cargo_args = Vec::new();
